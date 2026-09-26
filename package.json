@@ -7,7 +7,9 @@
     "dev": "vite --host 127.0.0.1",
     "build": "npm run typecheck && vite build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "experiment:test": "uv run --project tools/experiment --locked pytest tools/experiment/test_generate.py",
+    "experiment:generate": "uv run --project tools/experiment --locked python tools/experiment/generate.py"
   },
   "dependencies": {
     "react": "19.3.0",

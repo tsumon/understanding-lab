@@ -44,7 +44,7 @@ const StepSchema = z.enum([
   "explain", "clarify", "predict", "experiment", "reexplain", "transfer", "summary",
 ]);
 
-const ExperimentConfigSchema = z.strictObject({
+export const ExperimentConfigSchema = z.strictObject({
   seed: z.union([z.literal(17), z.literal(29), z.literal(43)]),
   n: z.union([z.literal(20), z.literal(40), z.literal(80)]),
   noise: z.union([z.literal(0), z.literal(0.1), z.literal(0.3)]),
