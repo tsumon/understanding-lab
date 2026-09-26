@@ -13,3 +13,7 @@ playwright-report/
 .venv/
 __pycache__/
 .pytest_cache/
+.cache/
+*.wav
+*.mp3
+*.webm

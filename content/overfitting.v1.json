@@ -1,0 +1,18 @@
+{
+  "version": "overfitting.v1",
+  "title": "为什么训练误差低，不代表效果好",
+  "paragraphs": [
+    {"id":"p-splits","text":"训练集用于拟合参数，验证集用于选择配置。最终测试集应在选择完成后使用；根据测试结果反复调整，会把测试信息带入选择。","source":"https://scikit-learn.org/stable/modules/cross_validation.html"},
+    {"id":"p-fit","text":"模型可能学到规律，也可能追随样本噪声。对训练数据拟合得更好，不保证对未见数据表现更好。","source":"https://scikit-learn.org/stable/auto_examples/model_selection/plot_underfitting_overfitting.html"},
+    {"id":"p-context","text":"复杂度、样本量、噪声和数据划分都会影响观察结果。某个阶数在一次实验中更好，不是所有数据上都适用的规则。","source":"https://scikit-learn.org/stable/auto_examples/model_selection/plot_underfitting_overfitting.html"},
+    {"id":"p-evidence","text":"本实验显示特定合成数据上的均方误差。操作参数提供观察，解释和迁移回答才为理解提供额外证据。","source":"internal:learning-design-v1"}
+  ],
+  "questions": [
+    {"id":"explain-1","text":"你怎样解释训练误差很低，但新数据上表现不好？"},
+    {"id":"clarify-1","text":"你说的表现，指训练数据还是未用于拟合的数据？"},
+    {"id":"clarify-2","text":"怎样区分模型学到了规律，还是追随了噪声？"},
+    {"id":"predict-1","text":"保持样本和噪声不变，提高阶数后，训练与验证误差可能怎样变化？"},
+    {"id":"reexplain-1","text":"结合刚才的观察，重新解释训练误差与泛化表现的关系。"},
+    {"id":"transfer-1","text":"根据同一个测试集反复挑出最好的配置，这个结果还能作为独立的泛化证据吗？为什么？"}
+  ]
+}
