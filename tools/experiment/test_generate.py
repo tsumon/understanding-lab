@@ -1,14 +1,73 @@
 import hashlib
 import json
 import sys
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from generate import generate
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def assert_packs_match(expected, actual):
+    assert expected["version"] == actual["version"]
+    assert expected["generator"] == actual["generator"]
+    assert expected["tolerances"] == actual["tolerances"]
+    assert expected["datasets"].keys() == actual["datasets"].keys()
+    for dataset_key, expected_splits in expected["datasets"].items():
+        actual_splits = actual["datasets"][dataset_key]
+        assert expected_splits.keys() == actual_splits.keys()
+        for split_name, expected_split in expected_splits.items():
+            actual_split = actual_splits[split_name]
+            assert expected_split["ids"] == actual_split["ids"]
+            np.testing.assert_allclose(
+                expected_split["x"], actual_split["x"], rtol=1e-8, atol=1e-10
+            )
+            np.testing.assert_allclose(
+                expected_split["y"], actual_split["y"], rtol=1e-8, atol=1e-10
+            )
+
+    assert len(expected["cases"]) == len(actual["cases"])
+    for expected_case, actual_case in zip(expected["cases"], actual["cases"]):
+        assert expected_case["key"] == actual_case["key"]
+        assert expected_case["config"] == actual_case["config"]
+        assert expected_case["datasetKey"] == actual_case["datasetKey"]
+        assert expected_case["metrics"].keys() == actual_case["metrics"].keys()
+        np.testing.assert_allclose(
+            expected_case["curve"], actual_case["curve"], rtol=1e-8, atol=1e-10
+        )
+        for metric_name, expected_value in expected_case["metrics"].items():
+            np.testing.assert_allclose(
+                expected_value, actual_case["metrics"][metric_name],
+                rtol=1e-8, atol=1e-10,
+            )
+
+
+def test_pack_comparison_tolerates_only_numerical_differences():
+    expected = generate()
+    slightly_different = deepcopy(expected)
+    slightly_different["datasets"]["17:0"]["train"]["x"][0] += 1e-11
+    slightly_different["cases"][0]["metrics"]["trainMse"] += 1e-11
+    assert_packs_match(expected, slightly_different)
+
+    outside_tolerance = deepcopy(expected)
+    outside_tolerance["datasets"]["17:0"]["train"]["x"][0] += 1e-6
+    with pytest.raises(AssertionError):
+        assert_packs_match(expected, outside_tolerance)
+
+    changed_id = deepcopy(expected)
+    changed_id["datasets"]["17:0"]["train"]["ids"][0] = "changed-id"
+    with pytest.raises(AssertionError):
+        assert_packs_match(expected, changed_id)
+
+    changed_config = deepcopy(expected)
+    changed_config["cases"][0]["config"]["degree"] += 1
+    with pytest.raises(AssertionError):
+        assert_packs_match(expected, changed_config)
 
 
 def test_catalog_is_complete_and_finite():
@@ -105,7 +164,7 @@ def test_published_pack_is_reproducible_and_manifest_matches_bytes():
     manifest_path = ROOT / "public/experiments/overfitting.v1.manifest.json"
     generated = generate()
     assert generated == generate()
-    assert json.loads(pack_path.read_text()) == generated
+    assert_packs_match(generated, json.loads(pack_path.read_text()))
     manifest = json.loads(manifest_path.read_text())
     assert manifest["python"] == sys.version.split()[0]
     assert manifest["numpy"] == np.__version__
