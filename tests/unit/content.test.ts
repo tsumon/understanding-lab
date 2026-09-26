@@ -14,6 +14,7 @@ test("主题证据 ID 稳定，新会话没有虚构的掌握记录", () => {
     contentRevision: 0,
     step: "explain",
     clarificationCount: 0,
+    clarificationRound: 1,
     skipped: [],
     answers: [],
     snapshots: [],

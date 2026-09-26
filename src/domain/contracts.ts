@@ -8,6 +8,7 @@ export type ExperimentConfig = {
 };
 export type Answer = {
   id: string; revision: number; step: Step; questionId: string;
+  clarificationRound?: 1 | 2;
   text: string; confirmedAt: string;
 };
 export type Snapshot = {
@@ -32,6 +33,7 @@ export type StoredFeedback = {
 export type LearningSession = {
   schemaVersion: 1; id: string; topicVersion: "overfitting.v1";
   contentRevision: number; step: Step; clarificationCount: number;
+  clarificationRound: 1 | 2;
   skipped: Step[]; answers: Answer[]; snapshots: Snapshot[];
   notes: string; feedback: StoredFeedback[];
   disagreements: { feedbackId: string; reason: string; createdAt: string }[];
@@ -56,9 +58,12 @@ const AnswerSchema = z.strictObject({
   revision: z.number().int().min(0),
   step: StepSchema,
   questionId: z.string(),
+  clarificationRound: z.union([z.literal(1), z.literal(2)]).optional(),
   text: codepointLengthAtMost(4000),
   confirmedAt: z.string(),
-}) satisfies z.ZodType<Answer>;
+}).refine((answer) => answer.step === "clarify"
+  ? answer.clarificationRound !== undefined : answer.clarificationRound === undefined,
+"Clarification round is required only for clarification answers") satisfies z.ZodType<Answer>;
 
 const SnapshotSchema = z.strictObject({
   id: z.string(),
@@ -96,6 +101,7 @@ export const SessionSchema = z.strictObject({
   contentRevision: z.number().int().min(0),
   step: StepSchema,
   clarificationCount: z.number().int().min(0).max(2),
+  clarificationRound: z.union([z.literal(1), z.literal(2)]),
   skipped: z.array(StepSchema).max(7),
   answers: z.array(AnswerSchema).max(50),
   snapshots: z.array(SnapshotSchema).max(100),
@@ -109,7 +115,7 @@ export const SessionSchema = z.strictObject({
 export function newSession(id: string): LearningSession {
   return {
     schemaVersion: 1, id, topicVersion: "overfitting.v1",
-    contentRevision: 0, step: "explain", clarificationCount: 0,
+    contentRevision: 0, step: "explain", clarificationCount: 0, clarificationRound: 1,
     skipped: [], answers: [], snapshots: [], notes: "",
     feedback: [], disagreements: [],
   };
