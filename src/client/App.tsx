@@ -8,8 +8,12 @@ import { MaterialPanel } from "./MaterialPanel";
 import { ExperimentPanel } from "./ExperimentPanel";
 import { SummaryPanel, stepLabels, STEPS } from "./SummaryPanel";
 import { OfflineStatus } from "./OfflineStatus";
+import { FeedbackPanel } from "./FeedbackPanel";
+import topicJson from "../../content/overfitting.v1.json";
+import { TopicSchema } from "../domain/contracts";
 import "./styles.css";
 
+const topic = TopicSchema.parse(topicJson);
 const draftId = "current";
 const saved = readEnvelope(draftId);
 const damaged = saved ? null : rawDraftForExport(draftId);
@@ -41,6 +45,7 @@ export function App() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [pack, setPack] = useState<ExperimentPack | null>(null);
   const [packError, setPackError] = useState<string | null>(null);
+  const [quotedAnswer, setQuotedAnswer] = useState<Answer | null>(null);
 
   useEffect(() => {
     fetch("/experiments/overfitting.v1.json").then((response) => {
@@ -55,6 +60,13 @@ export function App() {
     const result = writeEnvelope(draftId, envelope);
     setSaveError(result.ok ? null : result.reason === "storage-full" ? "存储空间已满" : "本机存储不可用");
   }, [started, session, exploration, drafts, text, corruptRaw]);
+
+  useEffect(() => {
+    if (quotedAnswer) {
+      document.getElementById("quoted-answer")?.focus();
+      document.getElementById("quoted-answer")?.scrollIntoView?.();
+    }
+  }, [quotedAnswer]);
 
   const exportCurrent = () => download("understanding-lab-attempt.json", JSON.stringify({ session, exploration, drafts, unconfirmedText: text, updatedAt: new Date().toISOString() }, null, 2), "application/json");
   const begin = () => { setStarted(true); setView("explanation"); setActionError(null); };
@@ -108,6 +120,12 @@ export function App() {
   const current = currentAnswer(session);
   const question = activeSlot ? questionFor(session, current?.questionId ?? `${session.step}-${session.step === "clarify" ? session.clarificationRound : 1}`) : "";
   const staleFeedback = feedbackViews(session).filter((entry) => entry.stale);
+  const activeFeedback = feedbackViews(session).filter((entry) => !entry.stale);
+  const openQuote = (answer: Answer) => { setQuotedAnswer(answer); setView("explanation"); };
+  const disagree = (feedbackId: string, reason: string) => {
+    try { setSession(transition(session, { type: "disagree", feedbackId, reason, createdAt: new Date().toISOString() })); setActionError(null); }
+    catch (error) { setActionError(error instanceof Error ? error.message : "无法记录异议"); }
+  };
 
   return <main className="app-shell">
     <header className="page-header">
@@ -145,6 +163,12 @@ export function App() {
             onReveal={() => setExploration((state) => transitionExperiment(state, { type: "reveal" }))} onRecord={record} /></div>
         </div>
         <div className={`workspace-secondary view-${view}`}>
+          {quotedAnswer && <section id="quoted-answer" tabIndex={-1} className="card quote-detail" aria-label="引用的回答版本">
+            <h2>第 {quotedAnswer.revision} 版回答</h2>
+            <p className="hint">{stepLabels[quotedAnswer.step]} · 已确认的历史文字</p>
+            <p className="preserve-breaks">{quotedAnswer.text}</p>
+            <button type="button" className="secondary" onClick={() => setQuotedAnswer(null)}>关闭引用</button>
+          </section>}
           {session.step === "summary" ? <SummaryPanel session={session} pack={pack} /> : <section className="card explanation-card" aria-labelledby="answer-title">
             <p className="eyebrow">{session.step === "clarify" ? `澄清 ${session.clarificationRound} / 2` : stepLabels[session.step]}</p>
             <h2 id="answer-title">{session.step === "experiment" ? "实验观察" : "我的讲解"}</h2>
@@ -166,7 +190,13 @@ export function App() {
             <textarea id="notes" rows={5} value={session.notes} onChange={(event) => {
               if ([...event.target.value].length <= 8000) setSession(transition(session, { type: "set-notes", notes: event.target.value }));
             }} /><p className="hint">笔记只在本机草稿中，不作为确认回答。</p></section>
-          {staleFeedback.length > 0 && <details className="card"><summary>过期的历史反馈（{staleFeedback.length}）</summary><p>这些反馈对应旧的回答或实验版本，不用于当前小结。</p></details>}
+          {activeFeedback.map(({ feedback }) => <FeedbackPanel key={feedback.id} feedback={feedback} session={session} topic={topic} pack={pack}
+            onQuote={openQuote} onDisagree={(reason) => disagree(feedback.id, reason)} />)}
+          {staleFeedback.length > 0 && <details className="card"><summary>过期的历史反馈（{staleFeedback.length}）</summary>
+            <p>这些反馈对应旧的回答或实验版本，不用于当前小结。</p>
+            {staleFeedback.map(({ feedback }) => <FeedbackPanel key={feedback.id} feedback={feedback} session={session} topic={topic} pack={pack}
+              onQuote={openQuote} onDisagree={(reason) => disagree(feedback.id, reason)} />)}
+          </details>}
         </div>
       </div>
       {saveError && <aside className="save-error" role="alert">未保存到本机：{saveError}。当前尝试仍在此页面内存中。<button type="button" onClick={exportCurrent}>导出当前尝试</button></aside>}

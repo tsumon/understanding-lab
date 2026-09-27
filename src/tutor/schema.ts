@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { TutorOutput } from "../domain/contracts";
 
-export const TutorOutputSchema = z.strictObject({
+const tutorWireShape = {
   kind: z.enum(["supported", "clarify", "contradiction", "insufficient"]),
   claim: z.string(),
   reason: z.string(),
@@ -22,4 +22,17 @@ export const TutorOutputSchema = z.strictObject({
     snapshotId: z.string(),
     metric: z.enum(["trainMse", "validationMse", "testMse"]),
   })),
+};
+
+export const TutorWireSchema = z.strictObject(tutorWireShape) satisfies z.ZodType<TutorOutput>;
+export const tutorWireJsonSchema = z.toJSONSchema(TutorWireSchema, { target: "draft-07" });
+
+export const TutorOutputSchema = z.strictObject({
+  ...tutorWireShape,
+  claim: z.string().refine((value) => [...value].length <= 160),
+  reason: z.string().refine((value) => [...value].length <= 800),
+  question: z.string().refine((value) => [...value].length <= 160).nullable(),
+  quotes: tutorWireShape.quotes.max(3),
+  sources: tutorWireShape.sources.max(3),
+  metrics: tutorWireShape.metrics.max(3),
 }) satisfies z.ZodType<TutorOutput>;
