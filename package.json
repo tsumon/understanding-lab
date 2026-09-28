@@ -15,6 +15,7 @@
     "experiment:generate": "uv run --project tools/experiment --locked python tools/experiment/generate.py"
   },
   "dependencies": {
+    "openai": "7.23.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "4.6.5"
