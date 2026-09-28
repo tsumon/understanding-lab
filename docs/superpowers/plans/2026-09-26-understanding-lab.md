@@ -8,9 +8,9 @@
 
 **Tech Stack:** TypeScript、React、Vite、Express 5、Better Auth、better-sqlite3、Zod、Vitest、Playwright；Python 3.12 / NumPy 构建数值包；OpenAI SDK 作为首个可替换的服务端适配器。
 
-**Spec:** [已确认设计](/Applications/understanding-lab/docs/superpowers/specs/2026-09-26-understanding-lab-design.md)
+**Spec:** [已确认设计](../specs/2026-09-26-understanding-lab-design.md)
 
-日期：2026-09-26。状态：实现计划，**尚未实施**。本文的命令与代码供后续执行，不是已经运行的测试或已经创建的应用。
+日期：2026-09-26。本文是批准时的实施蓝本，示例与未勾选步骤不代表实时进度。2026-09-28 已进入实现；当前状态见[交接文档](../../handoff.md)，测试见[验证记录](../../verification/2026-09-28.md)，后续裁定见[关键决策](../../decisions.md)。
 
 ## Global Constraints
 
@@ -39,7 +39,7 @@
 
 ## 0. 执行范围与里程碑
 
-当前没有应用仓库。收到实施指示后，默认在 /Applications/understanding-lab 建立独立项目；先检查路径及上级 Git 状态。如已有内容，不覆盖、不重新初始化。不要使用现有 Reminder、CowAgent、WeKnora、MaxKB 仓库。本文所有应用路径相对这个未来项目根。
+规划时没有应用仓库；现已在 /Applications/understanding-lab 建立独立项目，恢复时不要重新初始化。不要使用现有 Reminder、CowAgent、WeKnora、MaxKB 仓库。本文应用路径相对项目根。
 
 | 阶段 | 任务 | 可验收成果 | 尚不能宣称 |
 | --- | --- | --- | --- |
@@ -47,7 +47,7 @@
 | B：AI 教学模块 | 5–6 | 结构与引用验证、有限重试、供应商适配 | 已能安全公开提供模型调用 |
 | C：完整首版 | 7–12 | 登录同步、云端 AI、语音、隐私操作、验收记录 | 已证明学习效果、已有原生客户端 |
 
-依次执行 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12。各模块共享会话契约，不能独立作为完整产品交付，因此保留一份计划、三个阶段门槛。每项先红再绿、本地提交；推送、公开仓库、购买服务和部署不在默认授权内。
+依次执行 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12。各模块共享会话契约，不能独立作为完整产品交付，因此保留一份计划、三个阶段门槛。每项先红再绿、本地提交；2026-09-28 用户另行授权及时推送到私有仓库，见交接文档。公开仓库、购买服务、付费调用及部署仍无默认授权。
 
 ### 新增工程默认值
 
@@ -1045,4 +1045,3 @@ JSON 导出包含本人的 topic/pack版本、确认文字、快照和反馈/异
 - [Playwright 设备模拟](https://playwright.dev/docs/emulation)：覆盖视口/输入差异，不能替代真机麦克风验收。
 - [scikit-learn 拟合示例](https://scikit-learn.org/stable/auto_examples/model_selection/plot_underfitting_overfitting.html)、[数据划分](https://scikit-learn.org/stable/modules/cross_validation.html)：教学来源，不能把单次结果泛化为普遍规律。
 - [OpenAI 结构化输出](https://developers.openai.com/api/docs/guides/structured-outputs)、[文件转写](https://developers.openai.com/api/docs/guides/speech-to-text)：首个适配器的接口参考，不锁定供应商、具体模型或预算。
-
