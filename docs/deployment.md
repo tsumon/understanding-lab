@@ -30,3 +30,10 @@ Vite 开发服务器将 `/api` 代理到本机 3001。需要测试账号登录�
 默认 `TUTOR_ENABLED=false`、`TRANSCRIBE_ENABLED=false`。教学与转写可分别打开。转写需要 `TRANSCRIBE_ENABLED=true` 以及 `TRANSCRIBE_MODEL`、`OPENAI_API_KEY`、`OPENAI_BASE_URL`。转写不在启动时做计费探测。解码依赖本机 `ffmpeg`（可用 `FFMPEG_PATH` 覆盖），参数数组启动、`shell=false`、只允许 `pipe` 协议。镜像应安装固定可更新版本的 FFmpeg。缺少配置时 `/api/transcribe` 返回 `feature-disabled`，文字路径仍可用。
 
 当前只用 mock HTTP 验证启用生命周期，没有调用真实供应商。真实端点/模型兼容性、教学质量和 GitHub OAuth 登录需要部署者的配置与另行授权验收。日志只含固定事件和失败分类，不输出原始错误或环境值。
+
+## 公共部署阻断
+
+公开 HTTPS 部署还需要：持久磁盘、单进程、迁移前备份、恢复演练记录、实际供应商与模型名、账户配额、预算告警、供应商数据保留政策链接。缺任一项就保持 `blocked`，不要上公共域名。没有已披露的备份保留策略时，禁止公共部署，也不要写虚构的「7 天删除」。
+
+CI 见 `.github/workflows/ci.yml`：`contents: read`，Node 22.23.2，不调用付费 API。`eval:check` 在无人标签时失败，这是发布阻塞，不是要在 PR 里绕过。
+

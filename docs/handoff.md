@@ -37,11 +37,11 @@ AI 输出经过结构、引用、动作校验；一次教学操作最多两次�
 | 9 云端教学接线 | 完成并审阅 | 登录 UI、发送/保存分同意、POST /api/tutor、UTC 日额度 30/10、全局在途 4、退出清账号缓存；400 已按 consent/invalid 分流。真实 OAuth / 模型 / 双浏览器 live 未跑 |
 | 10 录音转写 | 完成并审阅 | 可选录音、服务端 FFmpeg 时长校验、转写填草稿不自动确认。审阅 nits-only：取消不再被 onstop 复活；收包计时在 busboy 完成后停止。本机无 FFmpeg；真机麦克风未跑 |
 | 11 教学评测 | 完成并审阅 | 42 条合成候选（28/14）、family 不跨集合、独立审阅 15/15 ship。`eval:check` 因无人标签失败。未伪造 reviewedBy；材料复核仍 pending |
-| 12 最终验收 | 未开始 | 全链路 / CI / 隐私验收、整体审阅、人工待办 |
+| 12 最终验收 | 已实现，待独立审阅 | CI 工作流、跳过≠掌握 e2e、导出/日志/bundle 扫描。5 人观察、真实 OAuth/模型、公共部署为 not-run/blocked；未伪造通过 |
 
 当前网页默认仍可匿名离线试玩。登录、保存到账号、发送给 AI 是分开的操作。未确认文字不进入云端正文；笔记默认不进模型。真实 GitHub OAuth 与计费模型仍未验收。视觉是功能布局，不是最终品牌设计。
 
-验证：Task 11 后 `npm test` 24 个文件 209/209 通过，`tsc --noEmit` 通过。`npm run eval:check` 按设计失败（无人标签）。数值 6/6 仍对未改动的实验包有效。各自检查点和边界见[验证记录](verification/2026-09-28.md)。
+验证：Task 12 后 `npm test` 25 文件 210/210；新增 e2e（跳过≠掌握、导出/bundle）在 Desktop / iPhone / Android 通过。`eval:check` 仍按设计失败。5 人观察与公共部署未做。见 [acceptance.md](acceptance.md)。
 
 ## 4. 接手需要知道的文件与接口
 
@@ -94,9 +94,10 @@ npm run build:offline
 
 ## 6. 接下来具体做什么
 
-顺序保持 **12**，不扩主题。
+顺序保持 **12 审阅**，然后只处理人工阻塞项。
 
-1. **Task 12，端到端与交付。** CI、隐私验收、acceptance.md 证据、5 位学习者观察；人工材料复核和 40 条人工标签不能拿 mock 代替。
+1. **Task 12 独立审阅。** 跳过≠掌握、CI SHA、acceptance 状态是否诚实。
+2. **人工阻塞。** 材料复核、40 条标签、5 位学习者、真实 OAuth/模型、备份策略；不能用 mock 代替。
 
 跟踪小项：反馈指标不可用时应显示明确状态，当前会静默少一张卡；Service Worker 更新确认及 API / 非 GET / 跨源绕过需要专门浏览器断言；真实手机输入法、麦克风、完整无障碍审核仍未做。
 
@@ -120,4 +121,4 @@ git ls-remote origin refs/heads/codex/understanding-lab-mvp
 
 可直接交给下一位助手：
 
-> 请先读 README、docs/handoff.md、docs/decisions.md 和最新验证记录，再检查 Git 与实际代码。沿用已批准的 12 项计划，从 Task 12 继续；不重做离线内核，不把 mock 当真实 OAuth / 模型验收。简单任务 Luna，常规集成 Sol，架构 Astra。每个验证过的小任务更新交接、提交并推送现有私有分支，核对远端 SHA。保护未提交修改与隐私，不公开部署、不调用付费模型。
+> 请先读 README、docs/handoff.md、docs/decisions.md 和最新验证记录，再检查 Git 与实际代码。沿用已批准的 12 项计划，独立审阅 Task 12；不重做离线内核，不把 mock 当真实 OAuth / 模型验收。简单任务 Luna，常规集成 Sol，架构 Astra。每个验证过的小任务更新交接、提交并推送现有私有分支，核对远端 SHA。保护未提交修改与隐私，不公开部署、不调用付费模型。
