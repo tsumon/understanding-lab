@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { newSession, type Answer, type ExperimentConfig, type LearningSession, type Snapshot } from "../domain/contracts";
+import { newSession, SessionSchema, type Answer, type ExperimentConfig, type LearningSession, type Snapshot, type StoredFeedback } from "../domain/contracts";
 import { currentAnswer, feedbackViews, questionFor, transition } from "../domain/session";
 import { parsePack, type ExperimentPack } from "../experiment/catalog";
 import { transitionExperiment, type Exploration } from "../experiment/exploration";
-import { clearConflict, deleteDraft, rawDraftForExport, readConflict, readEnvelope, writeConflict, writeEnvelope, type CloudBinding, type DraftEnvelope, type DraftSlot, type PendingSave } from "./local-store";
+import { clearConflict, clearOwnerCache, deleteDraft, rawDraftForExport, readConflict, readEnvelope, writeConflict, writeEnvelope, type CloudBinding, type ConflictCopy, type DraftEnvelope, type DraftSlot, type PendingSave } from "./local-store";
 import { forkAttempt, keepPending, prepareSave, synchronize } from "./sync";
-import { getSignedInUser } from "./auth-client";
+import { getSignedInUser, signInWithGitHub, signOut } from "./auth-client";
+import { postTutor, TutorRequestGuard } from "./ai-client";
 import { MaterialPanel } from "./MaterialPanel";
 import { ExperimentPanel } from "./ExperimentPanel";
 import { SummaryPanel, stepLabels, STEPS } from "./SummaryPanel";
@@ -67,6 +68,14 @@ export function App() {
   const syncing = useRef(false);
   const lastUser = useRef<string | null>(saved?.binding?.ownerId ?? null);
   const pendingRef = useRef<PendingSave | null>(saved?.pendingSave ?? null);
+  const tutorGuard = useRef(new TutorRequestGuard());
+  const [userId, setUserId] = useState<string | null>(null);
+  const [includeNotes, setIncludeNotes] = useState(false);
+  const [tutorBusy, setTutorBusy] = useState(false);
+  const [signOutPrompt, setSignOutPrompt] = useState(false);
+
+  const persistOwner = (nextBinding = binding, nextUser = userId) =>
+    nextUser && nextBinding?.ownerId === nextUser ? nextUser : null;
 
   useEffect(() => {
     fetch("/experiments/overfitting.v1.json").then((response) => {
@@ -80,11 +89,44 @@ export function App() {
     binding: nextBinding, autoSave: nextAutoSave, pendingSave: nextPending, updatedAt: new Date().toISOString(),
   });
 
+  const persist = (envelope: DraftEnvelope, owner = persistOwner()) => {
+    const result = writeEnvelope(draftId, envelope, owner);
+    setSaveError(result.ok ? null : result.reason === "storage-full" ? "存储空间已满" : "本机存储不可用");
+    return result;
+  };
+
   useEffect(() => {
     if (!started || corruptRaw !== null) return;
-    const result = writeEnvelope(draftId, envelopeOf());
-    setSaveError(result.ok ? null : result.reason === "storage-full" ? "存储空间已满" : "本机存储不可用");
-  }, [started, session, exploration, drafts, text, corruptRaw, binding, autoSave, pendingSave]);
+    persist(envelopeOf());
+  }, [started, session, exploration, drafts, text, corruptRaw, binding, autoSave, pendingSave, userId]);
+
+  useEffect(() => {
+    tutorGuard.current.invalidate();
+  }, [session.contentRevision, session.step, session.clarificationRound]);
+
+  const loadDraft = (draft: DraftEnvelope, conflictCopy: ConflictCopy | null, owner: string | null) => {
+    setSession(draft.session);
+    setExploration(draft.exploration);
+    setDrafts(draft.drafts ?? {});
+    setText(draft.unconfirmedText);
+    setBinding(draft.binding ?? null);
+    setAutoSave(Boolean(draft.autoSave && draft.binding));
+    setPendingSave(draft.pendingSave ?? null);
+    pendingRef.current = draft.pendingSave ?? null;
+    lastPushed.current = draft.binding ? JSON.stringify(draft.session) : null;
+    lastUser.current = owner ?? draft.binding?.ownerId ?? null;
+    setConflict(conflictCopy);
+    setSyncState(conflictCopy ? "conflict" : draft.binding ? "synced" : "local");
+    setStarted(true);
+    setCorruptRaw(null);
+  };
+
+  const identifyUser = (user: { id: string }) => {
+    setUserId(user.id);
+    lastUser.current = user.id;
+    const ownerDraft = readEnvelope(draftId, user.id);
+    if (ownerDraft) loadDraft(ownerDraft, readConflict(draftId, user.id), user.id);
+  };
 
   useEffect(() => {
     if (quotedAnswer) {
@@ -109,10 +151,7 @@ export function App() {
     setText(value);
     setDrafts(nextDrafts);
     // Persist the keystroke before a fast refresh can unmount this component.
-    if (started && corruptRaw === null) {
-      const result = writeEnvelope(draftId, envelopeOf(session, nextDrafts, value));
-      setSaveError(result.ok ? null : result.reason === "storage-full" ? "存储空间已满" : "本机存储不可用");
-    }
+    if (started && corruptRaw === null) persist(envelopeOf(session, nextDrafts, value));
   };
   const confirm = () => {
     if (!text.trim()) { setActionError("请先写下解释，或选择跳过。"); return; }
@@ -142,7 +181,7 @@ export function App() {
     catch (error) { setActionError(error instanceof Error ? error.message : "记录失败"); }
   };
   const pushToAccount = async () => {
-    if (syncing.current || corruptRaw !== null) return;
+    if (syncing.current || corruptRaw !== null || syncState === "deleted") return;
     syncing.current = true;
     const user = await getSignedInUser().catch(() => null);
     if (!user) {
@@ -157,13 +196,14 @@ export function App() {
       return;
     }
     lastUser.current = user.id;
+    setUserId(user.id);
     setSyncState("syncing");
     setActionError(null);
     const prepared = prepareSave(session, binding, pendingRef.current);
     pendingRef.current = prepared.pending;
     setPendingSave(prepared.pending);
     if (prepared.session.id !== session.id) setSession(prepared.session);
-    writeEnvelope(draftId, envelopeOf(prepared.session, drafts, text, binding, autoSave, prepared.pending));
+    persist(envelopeOf(prepared.session, drafts, text, binding, autoSave, prepared.pending));
     const outcome = await synchronize(envelopeOf(prepared.session), prepared.cloud, prepared.pending.key);
     syncing.current = false;
     if (!keepPending(outcome.status)) {
@@ -176,19 +216,19 @@ export function App() {
       setBinding(nextBinding);
       setConflict(null);
       clearConflict(draftId);
+      clearConflict(draftId, user.id);
       lastPushed.current = JSON.stringify(outcome.saved.session);
       setSyncState("synced");
-      writeEnvelope(draftId, envelopeOf(outcome.saved.session, drafts, text, nextBinding, autoSave, null));
+      persist(envelopeOf(outcome.saved.session, drafts, text, nextBinding, autoSave, null), user.id);
       return;
     }
     if (outcome.status === "conflict") {
       setConflict(outcome);
-      writeConflict(draftId, { local: outcome.local, cloud: outcome.cloud });
+      writeConflict(draftId, { local: outcome.local, cloud: outcome.cloud }, persistOwner(binding, user.id));
       setSyncState("conflict");
       return;
     }
     if (outcome.status === "deleted") {
-      setBinding(null);
       setAutoSave(false);
       setSyncState("deleted");
       return;
@@ -196,7 +236,7 @@ export function App() {
     setSyncState("offline");
   };
   useEffect(() => {
-    if (!started || !autoSave || !binding || conflict || corruptRaw !== null || syncState === "syncing") return;
+    if (!started || !autoSave || !binding || conflict || corruptRaw !== null || syncState === "syncing" || syncState === "deleted") return;
     if (JSON.stringify(session) === lastPushed.current) return;
     const timer = setTimeout(() => { void pushToAccount(); }, 800);
     return () => clearTimeout(timer);
@@ -218,20 +258,126 @@ export function App() {
     setPendingSave(null);
     lastPushed.current = JSON.stringify(cloud.session);
     setSyncState(nextBinding ? "synced" : "local");
-    writeEnvelope(draftId, envelopeOf(cloud.session, drafts, slot ? drafts[slot] ?? currentAnswer(cloud.session)?.text ?? "" : "", nextBinding, autoSave, null));
+    persist(envelopeOf(cloud.session, drafts, slot ? drafts[slot] ?? currentAnswer(cloud.session)?.text ?? "" : "", nextBinding, autoSave, null), persistOwner(nextBinding));
   };
   const saveAsNewAttempt = () => {
+    const owner = persistOwner();
     const next = forkAttempt(envelopeOf(), crypto.randomUUID());
     setSession(next.session);
     setBinding(null);
     setAutoSave(false);
     setConflict(null);
-    clearConflict(draftId);
+    clearConflict(draftId, owner);
     pendingRef.current = null;
     setPendingSave(null);
     lastPushed.current = null;
     setSyncState("local");
-    writeEnvelope(draftId, next);
+    persist(next, null);
+  };
+  const unsyncedAccountWork = () => Boolean(
+    binding && userId && binding.ownerId === userId
+    && (pendingSave || conflict || syncState === "offline" || syncState === "deleted" || JSON.stringify(session) !== lastPushed.current),
+  );
+  const restoreAnonymous = () => {
+    const anon = readEnvelope(draftId);
+    const anonConflict = readConflict(draftId);
+    if (anon) loadDraft(anon, anonConflict, null);
+    else {
+      setSession(newSession(draftId));
+      setExploration(initialExploration);
+      setDrafts({});
+      setText("");
+      setBinding(null);
+      setAutoSave(false);
+      setConflict(null);
+      setPendingSave(null);
+      pendingRef.current = null;
+      lastPushed.current = null;
+      setSyncState("local");
+      setStarted(false);
+    }
+    setUserId(null);
+    setIncludeNotes(false);
+    setSignOutPrompt(false);
+  };
+  const finishSignOut = async () => {
+    tutorGuard.current.invalidate();
+    const owner = userId ?? lastUser.current;
+    const keepAnonymousMemory = !binding;
+    if (owner) clearOwnerCache(owner);
+    if (keepAnonymousMemory) {
+      setUserId(null);
+      setIncludeNotes(false);
+      setSignOutPrompt(false);
+      lastUser.current = null;
+    } else restoreAnonymous();
+    try { await signOut(); }
+    catch { setActionError("退出登录未完成，本机账号缓存已清除。匿名草稿仍保留。"); }
+  };
+  const handleLogin = async () => {
+    setActionError(null);
+    const user = await getSignedInUser().catch(() => null);
+    if (user) { identifyUser(user); return; }
+    try { await signInWithGitHub(); }
+    catch { setActionError("登录暂时不可用。本机草稿未上传。"); }
+  };
+  const handleSignOut = async () => {
+    if (unsyncedAccountWork()) { setSignOutPrompt(true); return; }
+    await finishSignOut();
+  };
+  const clearDeletedLocal = () => {
+    const owner = persistOwner();
+    tutorGuard.current.invalidate();
+    deleteDraft(draftId, owner);
+    restoreAnonymous();
+    setSyncState("local");
+  };
+  const sendToTutor = async () => {
+    if (tutorBusy) return;
+    const user = await getSignedInUser().catch(() => null);
+    if (!user) {
+      setActionError("发送给 AI 需要先登录。本机草稿未上传，也没有调用模型。");
+      return;
+    }
+    setUserId(user.id);
+    lastUser.current = user.id;
+    setTutorBusy(true);
+    setActionError(null);
+    const outcome = await postTutor(session, { sendConsent: true, includeNotes, guard: tutorGuard.current });
+    setTutorBusy(false);
+    if (outcome === null) return;
+    if (outcome.status === "accepted" && outcome.result.status === "ok") {
+      const stored: StoredFeedback = {
+        id: outcome.requestId,
+        contentRevision: outcome.contentRevision,
+        output: outcome.result.output,
+        model: outcome.result.model,
+        promptVersion: outcome.result.promptVersion,
+        createdAt: new Date().toISOString(),
+      };
+      setSession((current) => {
+        if (current.contentRevision !== stored.contentRevision) return current;
+        if (current.feedback.some((item) => item.id === stored.id)) return current;
+        try { return SessionSchema.parse({ ...current, feedback: [...current.feedback, stored] }); }
+        catch { return current; }
+      });
+      return;
+    }
+    if (outcome.status === "accepted" && outcome.result.status === "unavailable") {
+      setActionError(outcome.result.question);
+      return;
+    }
+    if (outcome.status === "quota") { setActionError(outcome.question); return; }
+    if (outcome.status === "unavailable" || outcome.status === "unauthorized" || outcome.status === "forbidden"
+      || outcome.status === "not-found" || outcome.status === "conflict" || outcome.status === "consent" || outcome.status === "error") {
+      setActionError(outcome.question);
+      return;
+    }
+    if (outcome.status === "deleted") {
+      setAutoSave(false);
+      setSyncState("deleted");
+      return;
+    }
   };
   const activeSlot = slotFor(session);
   const current = currentAnswer(session);
@@ -251,6 +397,14 @@ export function App() {
       <p>阅读证据、写下解释，再用真实数值观察变化。离线引导，不是 AI 评价。</p>
       <OfflineStatus />
       <p className="sync-status" data-state={syncState} aria-live="polite">{syncLabels[syncState]}</p>
+      <div className="account-bar">
+        {userId
+          ? <>
+              <p className="hint">当前账号 {userId}</p>
+              <button type="button" className="secondary" onClick={() => void handleSignOut()}>退出登录</button>
+            </>
+          : <button type="button" className="secondary" onClick={() => void handleLogin()}>登录</button>}
+      </div>
     </header>
 
     {corruptRaw !== null && <section className="card warning-card" role="alert">
@@ -271,10 +425,23 @@ export function App() {
       </div>
     </section>}
 
+    {signOutPrompt && <section className="card warning-card" role="alert">
+      <h2>还有未同步的账号内容</h2>
+      <p>退出会清除这个账号在这台设备上的私人缓存和待同步队列，匿名试玩草稿会保留。远程删除也不会立刻擦掉离线副本。请先导出，未经确认不会丢弃仍在内存里的匿名草稿。</p>
+      <div className="actions">
+        <button type="button" onClick={exportCurrent}>导出未同步内容</button>
+        <button type="button" onClick={() => void finishSignOut()}>仍要退出</button>
+        <button type="button" className="secondary" onClick={() => setSignOutPrompt(false)}>取消</button>
+      </div>
+    </section>}
+
     {syncState === "deleted" && <section className="card warning-card" role="alert">
       <h2>账号记录已删除</h2>
-      <p>本机草稿仍在。不能用旧编号复活已删除的记录。可以另存为新尝试后再保存。</p>
-      <button type="button" className="secondary" onClick={saveAsNewAttempt}>另存为新尝试</button>
+      <p>本机草稿仍在。远程删除不会立刻擦掉这台设备上的离线副本。不能用旧编号复活已删除的记录。可以清除本机副本，或另存为新尝试后再保存。</p>
+      <div className="actions">
+        <button type="button" onClick={clearDeletedLocal}>清除本机副本</button>
+        <button type="button" className="secondary" onClick={saveAsNewAttempt}>另存为新尝试</button>
+      </div>
     </section>}
 
     {!started && corruptRaw === null && <section className="card intro"><h2>开始一次本机学习</h2>
@@ -337,14 +504,26 @@ export function App() {
       {!saveError && <p className="save-status">本机草稿自动保存；确认前的文字不会作为回答发送。</p>}
       <section className="card">
         <h2>保存到账号</h2>
-        <p className="hint">登录不会自动上传。只有选择保存到账号后，确认过的学习记录才会上传；未确认的文字仍只在本机。登录入口在云端教学接线完成前不会出现。</p>
+        <p className="hint">登录不会自动上传匿名草稿。只有选择保存到账号后，确认过的学习记录才会上传；未确认的文字仍只在本机。保存到账号不会调用模型。</p>
         <div className="actions">
-          <button type="button" onClick={() => void pushToAccount()} disabled={syncState === "syncing" || conflict !== null}>保存到账号</button>
+          <button type="button" onClick={() => void pushToAccount()} disabled={syncState === "syncing" || conflict !== null || syncState === "deleted"}>保存到账号</button>
         </div>
-        {binding && <label htmlFor="auto-save-attempt">
+        {binding && syncState !== "deleted" && <label htmlFor="auto-save-attempt">
           <input id="auto-save-attempt" type="checkbox" checked={autoSave} onChange={(event) => setAutoSave(event.target.checked)} />
           之后自动保存这次尝试。只作用于当前这次，不会把其他本机草稿上传。
         </label>}
+      </section>
+      <section className="card">
+        <h2>发送给 AI</h2>
+        <p className="hint">发送给 AI 需要单独同意，不会自动长期保存到账号。私人笔记默认不发送。额度按 UTC 日期计算，每天最多 30 次教学、10 次转写（转写尚未接通）。发出请求不等于已经成功。</p>
+        <label htmlFor="include-notes">
+          <input id="include-notes" type="checkbox" checked={includeNotes} onChange={(event) => setIncludeNotes(event.target.checked)} />
+          把私人笔记一并发送给模型
+        </label>
+        <div className="actions">
+          <button type="button" onClick={() => void sendToTutor()} disabled={tutorBusy}>发送给 AI</button>
+        </div>
+        {tutorBusy && <p className="hint" aria-live="polite">正在请求教学反馈…</p>}
       </section>
       {!saveError && <button type="button" className="export-link" onClick={exportCurrent}>导出当前尝试</button>}
     </>}

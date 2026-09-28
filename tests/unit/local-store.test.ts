@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { newSession } from "../../src/domain/contracts";
-import { readEnvelope, writeEnvelope, deleteDraft, rawDraftForExport, writeConflict, readConflict, clearConflict } from "../../src/client/local-store";
+import { readEnvelope, writeEnvelope, deleteDraft, rawDraftForExport, writeConflict, readConflict, clearConflict, clearOwnerCache, draftStorageKey } from "../../src/client/local-store";
 
 const id = "draft-test";
 const key = `understanding-lab:v1:anonymous:${id}`;
@@ -67,5 +67,39 @@ describe("anonymous local drafts", () => {
     });
     expect(writeEnvelope(id, envelope())).toEqual({ ok: false, reason: "storage-full" });
     expect(storage.getItem(key)).toBe(previous);
+  });
+});
+
+describe("account-scoped cache", () => {
+  beforeEach(() => { vi.unstubAllGlobals(); localStorage.clear(); });
+
+  it("keeps anonymous and owner keys apart", () => {
+    const anon = envelope();
+    const owned = { ...envelope(), session: { ...newSession(id), notes: "账号笔记" }, binding: { ownerId: "alice", id, serverRevision: 1 } };
+    expect(writeEnvelope(id, anon)).toEqual({ ok: true });
+    expect(writeEnvelope(id, owned, "alice")).toEqual({ ok: true });
+    expect(draftStorageKey(id, "alice")).toBe(`understanding-lab:v1:owner:alice:${id}`);
+    expect(readEnvelope(id)?.session.notes).toBe("");
+    expect(readEnvelope(id, "alice")?.session.notes).toBe("账号笔记");
+    expect(localStorage.getItem(`understanding-lab:v1:anonymous:${id}`)).toContain("训练误差");
+    expect(localStorage.getItem(`understanding-lab:v1:owner:alice:${id}`)).toContain("账号笔记");
+  });
+
+  it("clears one owner's private cache and pending queue without touching anonymous drafts", () => {
+    const anon = envelope();
+    const alice = { ...envelope(), session: { ...newSession(id), notes: "alice" }, pendingSave: { id, key: "k", hash: "h" }, binding: { ownerId: "alice", id, serverRevision: 2 } };
+    const bob = { ...envelope(), session: { ...newSession(id), notes: "bob" } };
+    expect(writeEnvelope(id, anon)).toEqual({ ok: true });
+    expect(writeEnvelope(id, alice, "alice")).toEqual({ ok: true });
+    expect(writeConflict(id, { local: alice, cloud: { session: newSession(id), serverRevision: 3 } }, "alice")).toEqual({ ok: true });
+    expect(writeEnvelope(id, bob, "bob")).toEqual({ ok: true });
+    clearOwnerCache("alice");
+    expect(readEnvelope(id)).toEqual(anon);
+    expect(readEnvelope(id, "alice")).toBeNull();
+    expect(readConflict(id, "alice")).toBeNull();
+    expect(readEnvelope(id, "bob")?.session.notes).toBe("bob");
+    deleteDraft(id, "bob");
+    expect(readEnvelope(id, "bob")).toBeNull();
+    expect(readEnvelope(id)).toEqual(anon);
   });
 });

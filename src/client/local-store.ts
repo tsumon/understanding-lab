@@ -55,17 +55,22 @@ const conflictSchema = z.strictObject({
   }),
 });
 
-const keyFor = (id: string) => `understanding-lab:v1:anonymous:${id}`;
-const conflictKeyFor = (id: string) => `understanding-lab:v1:conflict:${id}`;
+export function draftStorageKey(id: string, ownerId?: string | null): string {
+  return ownerId ? `understanding-lab:v1:owner:${ownerId}:${id}` : `understanding-lab:v1:anonymous:${id}`;
+}
 
-export function rawDraftForExport(id: string): string | null {
-  try { return localStorage.getItem(keyFor(id)); }
+export function conflictStorageKey(id: string, ownerId?: string | null): string {
+  return ownerId ? `understanding-lab:v1:owner:${ownerId}:conflict:${id}` : `understanding-lab:v1:conflict:${id}`;
+}
+
+export function rawDraftForExport(id: string, ownerId?: string | null): string | null {
+  try { return localStorage.getItem(draftStorageKey(id, ownerId)); }
   catch { return null; }
 }
 
-export function readEnvelope(id: string): DraftEnvelope | null {
+export function readEnvelope(id: string, ownerId?: string | null): DraftEnvelope | null {
   try {
-    const raw = localStorage.getItem(keyFor(id));
+    const raw = localStorage.getItem(draftStorageKey(id, ownerId));
     if (raw === null) return null;
     const parsed = envelopeSchema.parse(JSON.parse(raw));
     // The working slot "current" may hold a UUID-identified attempt after the first account save.
@@ -73,13 +78,14 @@ export function readEnvelope(id: string): DraftEnvelope | null {
   } catch { return null; }
 }
 
-export function writeEnvelope(id: string, envelope: DraftEnvelope): { ok: true } | { ok: false; reason: "storage-full" | "unavailable" } {
+export function writeEnvelope(id: string, envelope: DraftEnvelope, ownerId?: string | null): { ok: true } | { ok: false; reason: "storage-full" | "unavailable" } {
   try {
-    const current = localStorage.getItem(keyFor(id));
-    if (current !== null && readEnvelope(id) === null) return { ok: false, reason: "unavailable" };
+    const key = draftStorageKey(id, ownerId);
+    const current = localStorage.getItem(key);
+    if (current !== null && readEnvelope(id, ownerId) === null) return { ok: false, reason: "unavailable" };
     const valid = envelopeSchema.parse(envelope);
     if (valid.session.id !== id && id !== "current") return { ok: false, reason: "unavailable" };
-    localStorage.setItem(keyFor(id), JSON.stringify(valid));
+    localStorage.setItem(key, JSON.stringify(valid));
     return { ok: true };
   } catch (error) {
     if (error instanceof DOMException && (error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED")) {
@@ -89,23 +95,23 @@ export function writeEnvelope(id: string, envelope: DraftEnvelope): { ok: true }
   }
 }
 
-export function deleteDraft(id: string): void {
+export function deleteDraft(id: string, ownerId?: string | null): void {
   try {
-    localStorage.removeItem(keyFor(id));
-    localStorage.removeItem(conflictKeyFor(id));
+    localStorage.removeItem(draftStorageKey(id, ownerId));
+    localStorage.removeItem(conflictStorageKey(id, ownerId));
   } catch { /* The current in-memory attempt remains usable. */ }
 }
 
-export function readConflict(id: string): ConflictCopy | null {
+export function readConflict(id: string, ownerId?: string | null): ConflictCopy | null {
   try {
-    const raw = localStorage.getItem(conflictKeyFor(id));
+    const raw = localStorage.getItem(conflictStorageKey(id, ownerId));
     return raw === null ? null : conflictSchema.parse(JSON.parse(raw));
   } catch { return null; }
 }
 
-export function writeConflict(id: string, copy: ConflictCopy): { ok: true } | { ok: false; reason: "storage-full" | "unavailable" } {
+export function writeConflict(id: string, copy: ConflictCopy, ownerId?: string | null): { ok: true } | { ok: false; reason: "storage-full" | "unavailable" } {
   try {
-    localStorage.setItem(conflictKeyFor(id), JSON.stringify(conflictSchema.parse(copy)));
+    localStorage.setItem(conflictStorageKey(id, ownerId), JSON.stringify(conflictSchema.parse(copy)));
     return { ok: true };
   } catch (error) {
     if (error instanceof DOMException && (error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED")) {
@@ -115,7 +121,20 @@ export function writeConflict(id: string, copy: ConflictCopy): { ok: true } | { 
   }
 }
 
-export function clearConflict(id: string): void {
-  try { localStorage.removeItem(conflictKeyFor(id)); }
+export function clearConflict(id: string, ownerId?: string | null): void {
+  try { localStorage.removeItem(conflictStorageKey(id, ownerId)); }
   catch { /* The current in-memory attempt remains usable. */ }
+}
+
+export function clearOwnerCache(ownerId: string): void {
+  if (!ownerId) return;
+  const prefix = `understanding-lab:v1:owner:${ownerId}:`;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(prefix)) keys.push(key);
+    }
+    for (const key of keys) localStorage.removeItem(key);
+  } catch { /* Anonymous drafts and in-memory work remain. */ }
 }
