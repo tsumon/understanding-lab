@@ -3,8 +3,8 @@ import { newSession, type Answer, type ExperimentConfig, type LearningSession, t
 import { currentAnswer, feedbackViews, questionFor, transition } from "../domain/session";
 import { parsePack, type ExperimentPack } from "../experiment/catalog";
 import { transitionExperiment, type Exploration } from "../experiment/exploration";
-import { clearConflict, deleteDraft, rawDraftForExport, readConflict, readEnvelope, writeConflict, writeEnvelope, type CloudBinding, type DraftEnvelope, type DraftSlot } from "./local-store";
-import { forkAttempt, synchronize } from "./sync";
+import { clearConflict, deleteDraft, rawDraftForExport, readConflict, readEnvelope, writeConflict, writeEnvelope, type CloudBinding, type DraftEnvelope, type DraftSlot, type PendingSave } from "./local-store";
+import { forkAttempt, keepPending, prepareSave, synchronize } from "./sync";
 import { getSignedInUser } from "./auth-client";
 import { MaterialPanel } from "./MaterialPanel";
 import { ExperimentPanel } from "./ExperimentPanel";
@@ -62,9 +62,11 @@ export function App() {
   const [autoSave, setAutoSave] = useState(Boolean(saved?.autoSave && saved.binding));
   const [conflict, setConflict] = useState(savedConflict);
   const [syncState, setSyncState] = useState<SyncState>(savedConflict ? "conflict" : saved?.binding ? "synced" : "local");
+  const [pendingSave, setPendingSave] = useState<PendingSave | null>(saved?.pendingSave ?? null);
   const lastPushed = useRef<string | null>(saved?.binding ? JSON.stringify(saved.session) : null);
   const syncing = useRef(false);
   const lastUser = useRef<string | null>(saved?.binding?.ownerId ?? null);
+  const pendingRef = useRef<PendingSave | null>(saved?.pendingSave ?? null);
 
   useEffect(() => {
     fetch("/experiments/overfitting.v1.json").then((response) => {
@@ -73,16 +75,16 @@ export function App() {
     }).then((data) => setPack(parsePack(data))).catch((error: unknown) => setPackError(error instanceof Error ? error.message : "未知错误"));
   }, []);
 
-  const envelopeOf = (nextSession = session, nextDrafts = drafts, nextText = text, nextBinding = binding, nextAutoSave = autoSave): DraftEnvelope => ({
+  const envelopeOf = (nextSession = session, nextDrafts = drafts, nextText = text, nextBinding = binding, nextAutoSave = autoSave, nextPending = pendingSave): DraftEnvelope => ({
     session: nextSession, exploration, drafts: nextDrafts, unconfirmedText: nextText,
-    binding: nextBinding, autoSave: nextAutoSave, updatedAt: new Date().toISOString(),
+    binding: nextBinding, autoSave: nextAutoSave, pendingSave: nextPending, updatedAt: new Date().toISOString(),
   });
 
   useEffect(() => {
     if (!started || corruptRaw !== null) return;
     const result = writeEnvelope(draftId, envelopeOf());
     setSaveError(result.ok ? null : result.reason === "storage-full" ? "存储空间已满" : "本机存储不可用");
-  }, [started, session, exploration, drafts, text, corruptRaw, binding, autoSave]);
+  }, [started, session, exploration, drafts, text, corruptRaw, binding, autoSave, pendingSave]);
 
   useEffect(() => {
     if (quotedAnswer) {
@@ -141,21 +143,33 @@ export function App() {
   };
   const pushToAccount = async () => {
     if (syncing.current || corruptRaw !== null) return;
-    const user = await getSignedInUser().catch(() => null);
-    if (!user) { setSyncState("offline"); setActionError("当前没有登录会话，本机草稿未上传。"); return; }
-    if (binding && binding.ownerId !== user.id) { setActionError("当前登录账号与这份云端绑定不一致。"); return; }
-    lastUser.current = user.id;
-    const attempt = !binding && session.id === "current" ? { ...session, id: crypto.randomUUID() } : session;
-    const key = crypto.randomUUID();
     syncing.current = true;
+    const user = await getSignedInUser().catch(() => null);
+    if (!user) {
+      syncing.current = false;
+      setSyncState("offline");
+      setActionError("当前没有登录会话，本机草稿未上传。");
+      return;
+    }
+    if (binding && binding.ownerId !== user.id) {
+      syncing.current = false;
+      setActionError("当前登录账号与这份云端绑定不一致。");
+      return;
+    }
+    lastUser.current = user.id;
     setSyncState("syncing");
     setActionError(null);
-    const outcome = await synchronize(
-      envelopeOf(attempt),
-      binding ? { id: binding.id, serverRevision: binding.serverRevision } : null,
-      key,
-    );
+    const prepared = prepareSave(session, binding, pendingRef.current);
+    pendingRef.current = prepared.pending;
+    setPendingSave(prepared.pending);
+    if (prepared.session.id !== session.id) setSession(prepared.session);
+    writeEnvelope(draftId, envelopeOf(prepared.session, drafts, text, binding, autoSave, prepared.pending));
+    const outcome = await synchronize(envelopeOf(prepared.session), prepared.cloud, prepared.pending.key);
     syncing.current = false;
+    if (!keepPending(outcome.status)) {
+      pendingRef.current = null;
+      setPendingSave(null);
+    }
     if (outcome.status === "saved") {
       const nextBinding = { ownerId: user.id, id: outcome.saved.session.id, serverRevision: outcome.saved.serverRevision };
       setSession(outcome.saved.session);
@@ -164,7 +178,7 @@ export function App() {
       clearConflict(draftId);
       lastPushed.current = JSON.stringify(outcome.saved.session);
       setSyncState("synced");
-      writeEnvelope(draftId, envelopeOf(outcome.saved.session, drafts, text, nextBinding, autoSave));
+      writeEnvelope(draftId, envelopeOf(outcome.saved.session, drafts, text, nextBinding, autoSave, null));
       return;
     }
     if (outcome.status === "conflict") {
@@ -200,9 +214,11 @@ export function App() {
     setText(slot ? drafts[slot] ?? currentAnswer(cloud.session)?.text ?? "" : "");
     setConflict(null);
     clearConflict(draftId);
+    pendingRef.current = null;
+    setPendingSave(null);
     lastPushed.current = JSON.stringify(cloud.session);
     setSyncState(nextBinding ? "synced" : "local");
-    writeEnvelope(draftId, envelopeOf(cloud.session, drafts, slot ? drafts[slot] ?? currentAnswer(cloud.session)?.text ?? "" : "", nextBinding, autoSave));
+    writeEnvelope(draftId, envelopeOf(cloud.session, drafts, slot ? drafts[slot] ?? currentAnswer(cloud.session)?.text ?? "" : "", nextBinding, autoSave, null));
   };
   const saveAsNewAttempt = () => {
     const next = forkAttempt(envelopeOf(), crypto.randomUUID());
@@ -211,6 +227,8 @@ export function App() {
     setAutoSave(false);
     setConflict(null);
     clearConflict(draftId);
+    pendingRef.current = null;
+    setPendingSave(null);
     lastPushed.current = null;
     setSyncState("local");
     writeEnvelope(draftId, next);
@@ -305,7 +323,7 @@ export function App() {
           <section className="card notes-card"><h2>私人笔记</h2><label htmlFor="notes">我的笔记（最多 8000 字）</label>
             <textarea id="notes" rows={5} value={session.notes} onChange={(event) => {
               if ([...event.target.value].length <= 8000) setSession(transition(session, { type: "set-notes", notes: event.target.value }));
-            }} /><p className="hint">笔记只在本机草稿中，不作为确认回答。</p></section>
+            }} /><p className="hint">笔记不是确认回答。保存到账号时，笔记会随这次尝试一起上传；默认不会发给模型。</p></section>
           {activeFeedback.map(({ feedback }) => <FeedbackPanel key={feedback.id} feedback={feedback} session={session} topic={topic} pack={pack}
             onQuote={openQuote} onDisagree={(reason) => disagree(feedback.id, reason)} />)}
           {staleFeedback.length > 0 && <details className="card"><summary>过期的历史反馈（{staleFeedback.length}）</summary>

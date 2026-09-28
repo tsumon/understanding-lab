@@ -152,8 +152,13 @@ export class SessionRepository {
           .run(JSON.stringify(session), now, id, ownerId, baseRevision);
         if (update.changes !== 1) throw new SessionRepositoryError(409);
       } else {
-        this.db.prepare(`INSERT INTO learning_sessions (id, owner_id, revision, payload, deleted_at, updated_at)
-          VALUES (?, ?, 1, ?, NULL, ?)`).run(id, ownerId, JSON.stringify(session), now);
+        try {
+          this.db.prepare(`INSERT INTO learning_sessions (id, owner_id, revision, payload, deleted_at, updated_at)
+            VALUES (?, ?, 1, ?, NULL, ?)`).run(id, ownerId, JSON.stringify(session), now);
+        } catch (error) {
+          if (error instanceof Error && /constraint/i.test(error.message)) throw new SessionRepositoryError(409);
+          throw error;
+        }
       }
       this.db.prepare(`INSERT INTO save_keys (owner_id, idempotency_key, session_id, request_hash, response_json)
         VALUES (?, ?, ?, ?, ?)`).run(ownerId, key, id, hash, JSON.stringify(result));
@@ -166,8 +171,9 @@ export class SessionRepository {
       this.row(ownerId, id);
       const now = new Date().toISOString();
       // Feedback bodies live in payload and in cached save responses; clear both.
-      this.db.prepare(`UPDATE learning_sessions SET payload = NULL, deleted_at = ?, updated_at = ?, revision = revision + 1
+      const update = this.db.prepare(`UPDATE learning_sessions SET payload = NULL, deleted_at = ?, updated_at = ?, revision = revision + 1
         WHERE id = ? AND owner_id = ? AND deleted_at IS NULL`).run(now, now, id, ownerId);
+      if (update.changes !== 1) throw new SessionRepositoryError(410);
       this.db.prepare("DELETE FROM save_keys WHERE owner_id = ? AND session_id = ?").run(ownerId, id);
     }).immediate();
   }

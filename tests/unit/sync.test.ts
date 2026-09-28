@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test, vi } from "vitest";
 import { newSession } from "../../src/domain/contracts";
-import { forkAttempt, synchronize } from "../../src/client/sync";
+import { forkAttempt, keepPending, prepareSave, synchronize } from "../../src/client/sync";
 import type { DraftEnvelope } from "../../src/client/local-store";
 
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -50,6 +50,33 @@ test("deleted, offline network, and unauthorized responses stay in the declared 
   await expect(synchronize(envelope(), null, "k", async () => new Response("", { status: 410 }))).resolves.toEqual({ status: "deleted" });
   await expect(synchronize(envelope(), null, "k", async () => { throw new TypeError("Failed to fetch"); })).resolves.toEqual({ status: "offline" });
   await expect(synchronize(envelope(), null, "k", async () => new Response("", { status: 401 }))).resolves.toEqual({ status: "offline" });
+});
+
+test("offline retries reuse the same attempt id and idempotency key", () => {
+  const keys = ["attempt-1", "idem-1", "idem-2"];
+  const nextKey = () => keys.shift()!;
+  const draft = newSession("current");
+  const first = prepareSave(draft, null, null, nextKey);
+  expect(first.session.id).toBe("attempt-1");
+  expect(first.cloud).toBeNull();
+  expect(first.pending.key).toBe("idem-1");
+  const retry = prepareSave(draft, null, first.pending, nextKey);
+  expect(retry.pending).toEqual(first.pending);
+  expect(retry.session.id).toBe("attempt-1");
+  const edited = prepareSave({ ...draft, notes: "改了" }, null, first.pending, nextKey);
+  expect(edited.session.id).toBe("attempt-1");
+  expect(edited.pending.key).toBe("idem-2");
+  expect(keepPending("offline")).toBe(true);
+  expect(keepPending("saved")).toBe(false);
+});
+
+test("bound retries keep the cloud id and only mint a new key when the body changes", () => {
+  const binding = { ownerId: "alice", id: "s1", serverRevision: 2 };
+  const keys = ["k-old", "k-new"];
+  const first = prepareSave(newSession("s1"), binding, null, () => keys.shift()!);
+  expect(first.cloud).toEqual({ id: "s1", serverRevision: 2 });
+  expect(first.pending.key).toBe("k-old");
+  expect(prepareSave(newSession("s1"), binding, first.pending, () => keys.shift()!).pending.key).toBe("k-old");
 });
 
 test("forking assigns a new id and clears account binding without last-write-wins", () => {

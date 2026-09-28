@@ -156,6 +156,14 @@ test("SQLite abort after payload mutation rolls back both body and idempotency",
   expect(repo.save("alice", "s1", 1, "update", newSession("s1")).serverRevision).toBe(2);
 });
 
+test("create races surface as revision conflicts, not raw SQLite errors", () => {
+  const { db, repo } = setup();
+  db.exec("CREATE TEMP TRIGGER fail_create BEFORE INSERT ON learning_sessions BEGIN SELECT RAISE(ABORT, 'UNIQUE constraint failed: learning_sessions.id'); END");
+  expect(() => repo.save("alice", "s1", 0, "k", newSession("s1"))).toThrow("409");
+  expect(db.prepare("SELECT * FROM learning_sessions").all()).toEqual([]);
+  expect(db.prepare("SELECT * FROM save_keys").all()).toEqual([]);
+});
+
 test("delete and its replay-cache cleanup are one atomic transaction", () => {
   const { db, repo } = setup();
   const draft = newSession("s1");

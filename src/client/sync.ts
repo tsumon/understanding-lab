@@ -1,5 +1,5 @@
-import type { SavedSession } from "../domain/contracts";
-import type { DraftEnvelope } from "./local-store";
+import type { LearningSession, SavedSession } from "../domain/contracts";
+import type { CloudBinding, DraftEnvelope, PendingSave } from "./local-store";
 
 export type CloudRef = { id: string; serverRevision: number };
 export type SyncOutcome =
@@ -27,8 +27,32 @@ export function forkAttempt(local: DraftEnvelope, newId: string): DraftEnvelope 
     session: { ...local.session, id: newId },
     binding: null,
     autoSave: false,
+    pendingSave: null,
     updatedAt: new Date().toISOString(),
   };
+}
+
+function saveHash(id: string, baseRevision: number, session: LearningSession): string {
+  return JSON.stringify({ id, baseRevision, session });
+}
+
+/** Reuse the in-flight id and idempotency key until a terminal response, so a timeout cannot create a second cloud row. */
+export function prepareSave(
+  session: LearningSession,
+  binding: CloudBinding | null,
+  pending: PendingSave | null,
+  newKey: () => string = () => crypto.randomUUID(),
+): { session: LearningSession; cloud: CloudRef | null; pending: PendingSave } {
+  const id = binding?.id ?? pending?.id ?? (session.id === "current" ? newKey() : session.id);
+  const cloud = binding ? { id: binding.id, serverRevision: binding.serverRevision } : null;
+  const next = { ...session, id };
+  const hash = saveHash(id, cloud?.serverRevision ?? 0, next);
+  const key = pending && pending.id === id && pending.hash === hash ? pending.key : newKey();
+  return { session: next, cloud, pending: { id, key, hash } };
+}
+
+export function keepPending(status: SyncOutcome["status"]): boolean {
+  return status === "offline";
 }
 
 export async function synchronize(

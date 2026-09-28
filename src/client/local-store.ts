@@ -3,6 +3,7 @@ import { ExperimentConfigSchema, SessionSchema, type LearningSession, type Saved
 import type { Exploration } from "../experiment/exploration";
 
 export type CloudBinding = { ownerId: string; id: string; serverRevision: number };
+export type PendingSave = { id: string; key: string; hash: string };
 
 export type DraftEnvelope = {
   session: LearningSession;
@@ -12,6 +13,7 @@ export type DraftEnvelope = {
   updatedAt: string;
   binding?: CloudBinding | null;
   autoSave?: boolean;
+  pendingSave?: PendingSave | null;
 };
 
 export type ConflictCopy = { local: DraftEnvelope; cloud: SavedSession };
@@ -38,6 +40,11 @@ const envelopeSchema: z.ZodType<DraftEnvelope> = z.strictObject({
     serverRevision: z.number().int().min(1),
   }).nullable().optional(),
   autoSave: z.boolean().optional(),
+  pendingSave: z.strictObject({
+    id: z.string().min(1),
+    key: z.string().min(1),
+    hash: z.string().min(1),
+  }).nullable().optional(),
 });
 
 const conflictSchema = z.strictObject({
