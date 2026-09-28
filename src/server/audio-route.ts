@@ -97,6 +97,7 @@ export function mountAudioRoutes(app: Express, deps: AppDeps): void {
     parser.on("close", () => { if (!startedWork) release(); });
     parser.on("finish", () => {
       startedWork = true;
+      clearTimeout(receiveTimer);
       void (async () => {
         try {
           if (limited || total > MAX_UPLOAD) { fail(413, "body-too-large"); return; }

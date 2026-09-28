@@ -14,8 +14,10 @@ export function Recorder({ onTranscript, disabled }: Props) {
   const preview = useRef<string | null>(null);
   const timer = useRef<number | null>(null);
   const abort = useRef<AbortController | null>(null);
+  const discarded = useRef(false);
 
   const cleanup = (keepBlob = false) => {
+    if (!keepBlob) discarded.current = true;
     if (timer.current !== null) { window.clearTimeout(timer.current); timer.current = null; }
     if (recorder.current && recorder.current.state !== "inactive") recorder.current.stop();
     recorder.current = null;
@@ -42,14 +44,16 @@ export function Recorder({ onTranscript, disabled }: Props) {
       stream.current = media;
       chunks.current = [];
       const rec = new MediaRecorder(media, { mimeType: mime });
-      rec.ondataavailable = (event) => { if (event.data.size > 0) chunks.current.push(event.data); };
+      rec.ondataavailable = (event) => { if (!discarded.current && event.data.size > 0) chunks.current.push(event.data); };
       rec.onerror = () => { cleanup(); setPhase("idle"); setMessage("录音出错。请用文字继续。"); };
       rec.onstop = () => {
         if (stream.current) finishRecording(stream.current);
         stream.current = null;
+        if (discarded.current) return;
         blob.current = new Blob(chunks.current, { type: mime });
         setPhase("recorded");
       };
+      discarded.current = false;
       recorder.current = rec;
       rec.start();
       setPhase("recording");

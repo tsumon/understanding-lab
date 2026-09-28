@@ -1,0 +1,43 @@
+# Task 10 independent review
+
+Independent read of Task 10 (optional recording, server duration check, edit-then-confirm) on `codex/understanding-lab-mvp`. HEAD `94fadbe43811969f1a213b3767ec579ab5c241e0`. Commit in scope: `94fadbe` (`feat: add consented short voice transcription`). Focused Vitest: 3 files, 12/12 passing (`tests/unit/recording.test.ts`, `tests/unit/audio-wav.test.ts`, `tests/integration/audio.test.ts`). This document does not mark Task 10 complete. Host FFmpeg and real iPhone Safari / Android Chrome microphones remain unrun per handoff.
+
+## Summary
+
+Optional recording is gated on an explicit start click, uploads only with `X-Send-Consent: true` after Origin/auth, and writes the transcript into the editable draft; `确认这段解释` and `发送给 AI` stay separate clicks. The server decodes through `ffmpeg` with `shell: false` and `protocol_whitelist pipe`, measures duration from PCM bytes, allows 60s, and returns 422 `too-long` for 61s instead of trimming. Transcribe is independently switched, billed as quota kind `transcribe` at 10/UTC day, and decode `AudioError` paths `abortOperation` so they do not count as completed. Cancel/error stop every media track, but `MediaRecorder.onstop` still rebuilds the blob and returns the UI to `recorded`, so Cancel is not a complete discard.
+
+## Checklist
+
+| # | Item | Result | Evidence |
+| --- | --- | --- | --- |
+| 1 | `finishRecording` stops every track; tests use a stream stub matching the type | pass | `TrackBag` is `{ getTracks(): { stop(): void }[] }` (`recording.ts:1-5`). Test stub `{ getTracks: () => [{ stop }, { stop }] }` matches that type; `stop` called twice (`recording.test.ts:7-12`). |
+| 2 | `getUserMedia` only after explicit start click; permission denial keeps text path; no permission retry loop | pass | `getUserMedia` runs only inside `start()`, which is the 开始录音 click (`Recorder.tsx:33-41,96`). Catch sets idle and “没有麦克风权限。请用文字继续。” with no recursive `start` (`Recorder.tsx:57-60`). Textarea remains in `App.tsx:484`. |
+| 3 | 60s auto-stop; cancel / unmount / error stop tracks and revokeObjectURL | partial | 60s timer calls `rec.stop()` (`recording.ts:14`; `Recorder.tsx:56`). `cleanup` stops tracks, aborts, and `revokeObjectURL` on cancel, unmount, and error (`Recorder.tsx:18-29,46,69`). `onstop` then rebuilds `blob` and `setPhase("recorded")` even after cancel (`Recorder.tsx:47-51`) — see Issue 1. |
+| 4 | Re-record confirms before overwriting unsent blob | pass | `start` returns unless `window.confirm("覆盖还未转写的录音？")` when `blob.current` is set (`Recorder.tsx:35`). 开始录音 is shown whenever `phase !== "recording"` (`Recorder.tsx:96`). |
+| 5 | Transcript fills editable draft only; confirm button still required; never auto-calls tutor | pass | Success path is `onTranscript(text)` then idle, with copy that 确认 is still required (`Recorder.tsx:80-86`). App wires that to `changeText` only; confirm and `sendToTutor` are separate buttons (`App.tsx:158-169,338-351,486-487,531`). |
+| 6 | Auth/Origin/consent (`X-Send-Consent`) checked before accepting a large body; missing consent does not transcribe | pass | `/api` Origin then `resolveUser` run with no body parser (`app.ts:40-48`). Handler returns 400 `consent-required` and `drain`s before busboy (`audio-route.ts:26-29`). Missing header: 400, `transcribe` not called (`audio.test.ts:35-43`). Former unmounted `/api/transcribe` probe is now `/api/unused` (`auth.test.ts:57-61`). |
+| 7 | Upload ≤10MiB, one file; 413 when oversize; in-flight decode cap of 2 | pass | `MAX_UPLOAD = 10MiB`; busboy `limits: { files: 1, fileSize: MAX_UPLOAD }`; `content-length > MAX_UPLOAD + 4096` or `limited` → 413; `decoding >= 2` → 503 before increment (`audio-route.ts:8,42-52,80,102`). Header 413 in `audio.test.ts:64-66`. Decode-cap 2 is implemented, not HTTP-tested. |
+| 8 | FFmpeg spawned with argv array, `shell=false`, `protocol_whitelist pipe`, stdin `pipe:0`, no user filename, no http/file/concat | pass | `FFMPEG_ARGV` matches the plan; `spawnImpl(..., { stdio: ["pipe","pipe","pipe"], shell: false })` (`audio.ts:7-11,61`). Unit spawn asserts `shell === false`, whitelist `pipe`, `pipe:0`/`pipe:1`, and argv has no `http`/`file:`/`concat` (`audio-wav.test.ts:16-21,66-77`). |
+| 9 | Actual duration from decoded PCM bytes, not client-claimed duration; 60s allowed, 61s 422 too-long, not silently trimmed to 60s | pass | Cap is `MAX_SECONDS * SAMPLE_RATE * 2`; overflow sets `tooLong` and kills rather than returning 60s PCM (`audio.ts:5,70-74,94`). 59s/60s resolve, 61s `{ code: "too-long" }` (`audio-wav.test.ts:57-63`). Route also 422s oversize WAV and aborts quota (`audio-route.ts:117-121`; `audio.test.ts:67-70`). No client duration field. |
+| 10 | Empty / decode failure rejected; 15s decode timeout; finally destroys streams and kills child | pass | Empty PCM → `AudioError("empty")`; non-zero exit / stdout error → `decode` (`audio.ts:81,95-97`). 15s timer `SIGKILL`s (`audio.ts:65`). `catch` kills; `finally` clears timer and destroys stdin/stdout/stderr (`audio.ts:99-109`). Empty and decode covered in `audio-wav.test.ts:59,63`. |
+| 11 | `encodeWav`: 16kHz mono PCM16, header fields and length tested | pass | Header writes RIFF/WAVE, PCM format 1, channels 1, 16000 Hz, byteRate 32000, blockAlign 2, bits 16, dataSize, payload at 44 (`audio.ts:30-51`). Assertions match (`audio-wav.test.ts:43-55`). |
+| 12 | Transcription uses `openai.audio.transcriptions.create` json + `toFile` wav; `maxRetries` 0; independent `TRANSCRIBE_ENABLED`; unconfigured returns `feature-disabled` | pass | Client `maxRetries: 0`, `timeout: 30000`; `toFile(wav, "speech.wav")`; `response_format: "json"` (`openai.ts:112-121`). `TRANSCRIBE_ENABLED` is separate from tutor (`config.ts:32-38`). `activateTranscribe` returns null without a probe when unset (`main.ts:16-26`). Null provider: 503 `feature-disabled` before decode (`audio-route.ts:37-40`; `audio.test.ts:45-51`). |
+| 13 | Quota kind `transcribe`, 10/UTC day; decode failure before provider does not consume daily quota (`abort` vs `completed`) | pass | `LIMITS.transcribe = 10`; daily count is `reserved`/`in-flight`/`completed` only (`quota.ts:7,52-55`). `AudioError` and oversize WAV call `abortOperation` (state `aborted`); provider success/failure `finishOperation` → `completed` (`quota.ts:70-80`; `audio-route.ts:116-132`). HTTP 10 then 429 (`audio.test.ts:73-85`); ledger 10 vs tutor still reserved (`ai-routes.test.ts:228-237`). |
+| 14 | Privacy: audio processed in memory for this request; app does not keep original audio; no “full-chain zero retention” claim | pass | Decode is stdin/stdout pipes, no user path (`audio.ts:7-10,88`). Route keeps `chunks` only for the request (`audio-route.ts:75-105`). Privacy: in-memory for this transcription, app does not keep the original, third-party retention is the vendor’s policy, and it must not be written as 全链路零留存 (`privacy.md:7`). |
+| 15 | Real iPhone Safari / Android Chrome mic not claimed as done | pass | README: implemented, pending independent review, no device claim (`README.md:7`). Handoff: 真机麦克风未跑 (`docs/handoff.md:38`). Verification: 真机麦克风未跑; WebKit is not a real iPhone (`docs/verification/2026-09-28.md:21,49`). |
+
+## Issues
+
+### Issue 1 -- Severity: bug
+- File: src/client/Recorder.tsx:18-27,47-51,69
+- Description: `cleanup` (cancel, unmount, `onerror`) calls `MediaRecorder.stop()` and then clears `blob` / chunks. `stop()` is asynchronous: `ondataavailable` can push into the already-cleared `chunks` array, and `onstop` always does `blob.current = new Blob(...)` plus `setPhase("recorded")`. After 取消, the UI can return to 转写这段录音 with the discarded clip still held. Tracks are already stopped, so this is not a mic leak and it does not auto-call tutor, but Cancel is not a reliable discard.
+- Suggestion: Set a generation or `discarded` flag in `cleanup` before `stop()`. `onstop` should no-op unless that recorder is still current and not discarded. Keep `finishRecording` on every path.
+- Status: open
+
+### Issue 2 -- Severity: suggestion
+- File: src/server/audio-route.ts:10,58,62-67
+- Description: `RECEIVE_MS` (20s) is started with the request and only cleared in `release()` after decode and `transcribe`. The OpenAI transcribe client is configured for a 30s timeout (`openai.ts:112`). A slow receive plus the 15s decode budget can abort a legitimate provider call well under 30s (`controller.abort()` + `req.destroy()`).
+- Suggestion: Clear `receiveTimer` when busboy `finish` has the bytes (or on `limited`/`error`). Let the 15s ffmpeg kill and the 30s SDK timeout / disconnect abort govern the rest.
+- Status: open
+
+Verdict: nits-only
