@@ -50,6 +50,7 @@ test("SQLite 开启 foreign_keys 与 busy_timeout，显式迁移幂等", async (
   expect(first).toEqual([{ version: 1 }]);
   expect(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='session'").get()).toEqual({ name: "session" });
   expect(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='learning_sessions'").get()).toEqual({ name: "learning_sessions" });
+  expect(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='usage_operations'").get()).toEqual({ name: "usage_operations" });
   await migrate(db, auth);
   expect(db.prepare("SELECT version FROM schema_migrations ORDER BY version").all()).toEqual(first);
 });
