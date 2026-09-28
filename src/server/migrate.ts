@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { createAuth, type Auth } from "./auth";
 import { loadConfig } from "./config";
 import { openDatabase } from "./db";
+import { QuotaLedger } from "./quota";
 import { SessionRepository } from "./sessions";
 
 const migrations = [{ version: 1, name: "initialize-migration-ledger", sql: `
@@ -28,6 +29,7 @@ export async function migrate(db: Database.Database, auth: Auth): Promise<void> 
     })();
   }
   new SessionRepository(db).migrate();
+  new QuotaLedger(db).migrate();
 }
 
 async function main() {
