@@ -4,13 +4,14 @@
 
 面向 AI / 机器学习自学者，首个主题是 **过拟合**。电脑与手机先共用响应式 Web 应用；原生安装包不在首版范围。“理解实验室”是工作名。
 
-> 开发中：任务 1–10 已实现并审阅。离线学习流程可用。材料人工复核、教学效果、真实 OAuth / 模型接入均未验收。未发送给 AI 时，离线引导不是 AI 评价。
+> 开发中：任务 1–10 已实现并审阅；任务 11 评测候选已落地，人工标签未签。离线学习流程可用。材料人工复核、教学效果、真实 OAuth / 模型接入均未验收。未发送给 AI 时，离线引导不是 AI 评价。
 
 ## 项目文档
 
 - **接手 / 继续开发：** [交接文档](docs/handoff.md)，目标、进度、恢复步骤和下一项任务。
 - **为何这样设计：** [架构与关键决策](docs/decisions.md)。
 - **已验证与未验证：** [2026-09-28 验证记录](docs/verification/2026-09-28.md)。
+- **验收门槛：** [acceptance.md](docs/acceptance.md)。
 - **账号服务：** [部署说明](docs/deployment.md)、[隐私与数据边界](docs/privacy.md)。
 - **完整需求：** [产品设计](docs/superpowers/specs/2026-09-26-understanding-lab-design.md)、[12 项实施计划](docs/superpowers/plans/2026-09-26-understanding-lab.md)。旧计划是执行蓝本，实时状态以交接文档为准。
 
@@ -47,6 +48,8 @@ npm run preview:offline
 | `npm run test:e2e` | Chrome / iPhone WebKit 回归；首次先执行 `npx playwright install chromium webkit` |
 | `npm run experiment:test` | uv、锁定 Python 3.12 / NumPy 环境，独立核验数值 |
 | `npm run experiment:generate` | 重建 324 组数据，会更新生成文件；之后须复核差异和数值测试 |
+| `npm run eval:check` | 评测集门槛；无人标签时必须失败 |
+| `npm run eval:run` | 默认拒绝；需 `EVAL_RUN=true` 与预算，且另有授权才打真实接口 |
 | `npm run db:migrate` | 显式迁移 SQLite，先阅读部署说明并填写本地 `.env` |
 | `npm run server` | 启动已配置、已迁移的同源账号服务，不是完整云端教学产品 |
 

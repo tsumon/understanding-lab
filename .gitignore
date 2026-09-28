@@ -17,3 +17,5 @@ __pycache__/
 *.wav
 *.mp3
 *.webm
+reviews/runs/*
+!reviews/runs/.gitkeep

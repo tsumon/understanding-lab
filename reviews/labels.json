@@ -1,0 +1,4 @@
+{
+  "note": "Human reviewers record evidence_support, unfair_rejection, and fabricated_metric per case. AI implementers must not fill reviewedBy or reviewedAt.",
+  "labels": []
+}

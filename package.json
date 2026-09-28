@@ -14,7 +14,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "experiment:test": "uv run --project tools/experiment --locked pytest tools/experiment/test_generate.py",
-    "experiment:generate": "uv run --project tools/experiment --locked python tools/experiment/generate.py"
+    "experiment:generate": "uv run --project tools/experiment --locked python tools/experiment/generate.py",
+    "eval:check": "node --import tsx tools/evaluate.ts check",
+    "eval:run": "node --import tsx tools/evaluate.ts run"
   },
   "dependencies": {
     "better-auth": "1.7.6",
