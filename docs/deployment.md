@@ -35,5 +35,5 @@ Vite 开发服务器将 `/api` 代理到本机 3001。需要测试账号登录�
 
 公开 HTTPS 部署还需要：持久磁盘、单进程、迁移前备份、恢复演练记录、实际供应商与模型名、账户配额、预算告警、供应商数据保留政策链接。缺任一项就保持 `blocked`，不要上公共域名。没有已披露的备份保留策略时，禁止公共部署，也不要写虚构的「7 天删除」。
 
-CI 见 `.github/workflows/ci.yml`：`contents: read`，Node 22.23.2，不调用付费 API。`eval:check` 在无人标签时失败，这是发布阻塞，不是要在 PR 里绕过。
+CI 见 `.github/workflows/ci.yml`：`contents: read`，Node 22.23.2，不调用付费 API。无人标签时 `eval:check` 必须失败，CI 会断言这次失败；不要用 `continue-on-error` 把发布门槛做成全绿。签完 40 条并批准材料后，再改该步为期望通过。
 

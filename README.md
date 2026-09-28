@@ -4,7 +4,7 @@
 
 面向 AI / 机器学习自学者，首个主题是 **过拟合**。电脑与手机先共用响应式 Web 应用；原生安装包不在首版范围。“理解实验室”是工作名。
 
-> 开发中：任务 1–11 已实现并审阅；任务 12 技术验收与 CI 已落地。离线学习流程可用。材料人工复核、40 条人工标签、5 位学习者、真实 OAuth / 模型接入、公共部署均未验收。未发送给 AI 时，离线引导不是 AI 评价。
+> 开发中：任务 1–12 工程已实现并审阅。离线学习流程可用。材料人工复核、40 条人工标签、5 位学习者、真实 OAuth / 模型接入、公共部署均未验收。未发送给 AI 时，离线引导不是 AI 评价。
 
 ## 项目文档
 
@@ -45,7 +45,7 @@ npm run preview:offline
 | `npm run build` | 类型检查并构建前端 |
 | `npm run build:offline` | 构建并生成公共离线缓存清单 |
 | `npm run preview:offline` | 在本机 4173 端口预览构建产物 |
-| `npm run test:e2e` | Chrome / iPhone WebKit 回归；首次先执行 `npx playwright install chromium webkit` |
+| `npm run test:e2e` | Desktop Chrome、iPhone WebKit、Android Chrome（Pixel 5 视口）回归；首次先执行 `npx playwright install chromium webkit` |
 | `npm run experiment:test` | uv、锁定 Python 3.12 / NumPy 环境，独立核验数值 |
 | `npm run experiment:generate` | 重建 324 组数据，会更新生成文件；之后须复核差异和数值测试 |
 | `npm run eval:check` | 评测集门槛；无人标签时必须失败 |
