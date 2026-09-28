@@ -71,13 +71,26 @@ function isTutorResponse(value: unknown): value is { requestId: string; contentR
   return typeof body.requestId === "string" && Number.isSafeInteger(body.contentRevision) && isTutorResult(body.result);
 }
 
-function httpOutcome(status: number): PostTutorOutcome | null {
-  if (status === 400) return { status: "consent", question: "发送给 AI 需要明确同意。这次没有调用模型。" };
+function errorCode(value: unknown): string | undefined {
+  if (value === null || typeof value !== "object") return undefined;
+  const error = (value as { error?: unknown }).error;
+  return typeof error === "string" ? error : undefined;
+}
+
+function httpOutcome(status: number, body: unknown): PostTutorOutcome | null {
+  const code = errorCode(body);
+  if (status === 400 && code === "consent-required") {
+    return { status: "consent", question: "发送给 AI 需要明确同意。这次没有调用模型。" };
+  }
+  if (status === 400) {
+    return { status: "error", question: "这次请求格式无效，没有调用模型。" };
+  }
   if (status === 401) return { status: "unauthorized", question: "发送给 AI 需要先登录。本机草稿未上传。" };
   if (status === 403) return { status: "forbidden", question: "当前来源不被允许发送给 AI。" };
   if (status === 404) return { status: "not-found", question: "找不到这次账号记录。" };
   if (status === 409) return { status: "conflict", question: "相同请求已处理，没有重复发送。" };
   if (status === 410) return { status: "deleted" };
+  if (status === 413) return { status: "error", question: "这次请求太大，没有调用模型。" };
   if (status === 429) return { status: "quota", question: QUOTA_QUESTION };
   if (status === 503) return { status: "unavailable", reason: "busy", question: BUSY_QUESTION };
   return null;
@@ -105,13 +118,13 @@ export async function postTutor(session: LearningSession, input: PostTutorInput)
     if (token.signal.aborted || !input.guard.accept(token.requestId, session.contentRevision)) {
       return { status: "aborted" };
     }
-    const mapped = httpOutcome(response.status);
+    let parsed: unknown = null;
+    try { parsed = await response.json(); } catch { parsed = null; }
+    const mapped = httpOutcome(response.status, parsed);
     if (mapped) return mapped;
     if (response.status !== 200) {
       return { status: "error", question: UNAVAILABLE_QUESTION };
     }
-    let parsed: unknown = null;
-    try { parsed = await response.json(); } catch { parsed = null; }
     if (!isTutorResponse(parsed) || parsed.requestId !== token.requestId) {
       return { status: "unavailable", reason: "invalid-output", question: "AI 反馈未通过检查。请保留当前回答，稍后重试。" };
     }

@@ -69,6 +69,7 @@ export function App() {
   const lastUser = useRef<string | null>(saved?.binding?.ownerId ?? null);
   const pendingRef = useRef<PendingSave | null>(saved?.pendingSave ?? null);
   const tutorGuard = useRef(new TutorRequestGuard());
+  const tutorBusyRef = useRef(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [includeNotes, setIncludeNotes] = useState(false);
   const [tutorBusy, setTutorBusy] = useState(false);
@@ -333,17 +334,21 @@ export function App() {
     setSyncState("local");
   };
   const sendToTutor = async () => {
-    if (tutorBusy) return;
+    if (tutorBusyRef.current) return;
+    tutorBusyRef.current = true;
+    setTutorBusy(true);
+    setActionError(null);
     const user = await getSignedInUser().catch(() => null);
     if (!user) {
+      tutorBusyRef.current = false;
+      setTutorBusy(false);
       setActionError("发送给 AI 需要先登录。本机草稿未上传，也没有调用模型。");
       return;
     }
     setUserId(user.id);
     lastUser.current = user.id;
-    setTutorBusy(true);
-    setActionError(null);
     const outcome = await postTutor(session, { sendConsent: true, includeNotes, guard: tutorGuard.current });
+    tutorBusyRef.current = false;
     setTutorBusy(false);
     if (outcome === null) return;
     if (outcome.status === "accepted" && outcome.result.status === "ok") {

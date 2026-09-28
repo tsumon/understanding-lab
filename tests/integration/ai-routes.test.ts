@@ -46,6 +46,7 @@ test("没有发送同意不能消费模型调用", async () => {
     .post("/api/tutor").set("Origin", deps.publicOrigin)
     .send({ requestId: "r1", session: newSession("s1"), includeNotes: false });
   expect(result.status).toBe(400);
+  expect(result.body).toEqual({ error: "consent-required" });
   expect(generate).not.toHaveBeenCalled();
   deps.close();
 });
@@ -59,8 +60,13 @@ test("sendConsent must be true before any provider call", async () => {
     { requestId: "r1", session: newSession("s1"), includeNotes: false, sendConsent: false },
     { requestId: "r1", session: newSession("s1"), includeNotes: false, sendConsent: "true" },
   ]) {
-    expect((await post(app, deps.publicOrigin, body)).status).toBe(400);
+    const response = await post(app, deps.publicOrigin, body);
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: "consent-required" });
   }
+  const invalid = await post(app, deps.publicOrigin, { requestId: "r1", session: { ...newSession("s1"), step: "nope" }, includeNotes: false, sendConsent: true });
+  expect(invalid.status).toBe(400);
+  expect(invalid.body).toEqual({ error: "invalid-request" });
   expect(generate).not.toHaveBeenCalled();
 });
 

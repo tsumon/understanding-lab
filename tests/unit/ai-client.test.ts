@@ -89,6 +89,22 @@ test("postTutor sends notes only when includeNotes is true", async () => {
   expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body)).session.notes).toBe("私人笔记不应默认发送");
 });
 
+test("400 consent-required is missing consent; other 400s are invalid requests", async () => {
+  const consent = await postTutor(newSession("s1"), {
+    sendConsent: true, guard: new TutorRequestGuard(),
+    fetchImpl: async () => tutorResponse(400, { error: "consent-required" }),
+  });
+  expect(consent).toMatchObject({ status: "consent" });
+  expect(consent && "question" in consent ? consent.question : "").toMatch(/同意/);
+  const invalid = await postTutor(newSession("s1"), {
+    sendConsent: true, guard: new TutorRequestGuard(),
+    fetchImpl: async () => tutorResponse(400, { error: "invalid-request" }),
+  });
+  expect(invalid).toMatchObject({ status: "error" });
+  expect(invalid && "question" in invalid ? invalid.question : "").toMatch(/格式无效/);
+  expect(invalid && "question" in invalid ? invalid.question : "").not.toMatch(/同意/);
+});
+
 test("429 is quota and 503 is unavailable, never a learning-step result", async () => {
   const quota = await postTutor(newSession("s1"), { sendConsent: true, guard: new TutorRequestGuard(), fetchImpl: async () => tutorResponse(429) });
   expect(quota).toMatchObject({ status: "quota" });
