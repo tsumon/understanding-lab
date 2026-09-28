@@ -159,6 +159,45 @@ test("GitHub 只申请身份/email scope，并绑定部署者的回调", async (
   expect(url.searchParams.get("state")).toBeTruthy();
 });
 
+test.each(["sign-in/social", "link-social"])
+("GitHub %s 拒绝客户端扩展 OAuth 权限", async (route) => {
+  const { app, cookie } = await realAuth();
+  for (const scopes of [["repo"], ["read:user", "user:email", "repo"], ["read:user repo"]]) {
+    const response = await request(app).post(`/api/auth/${route}`)
+      .set("Origin", env.PUBLIC_ORIGIN).set("Cookie", cookie)
+      .send({ provider: "github", scopes, callbackURL: "/", disableRedirect: true });
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("OAUTH_SCOPE_NOT_ALLOWED");
+    expect(response.body.url).toBeUndefined();
+    expect(response.headers.location).toBeUndefined();
+  }
+});
+
+test.each(["sign-in/social", "link-social"])
+("GitHub %s 的客户端身份 scope 不改变部署者固定权限", async (route) => {
+  const { app, cookie } = await realAuth();
+  const response = await request(app).post(`/api/auth/${route}`)
+    .set("Origin", env.PUBLIC_ORIGIN).set("Cookie", cookie)
+    .send({ provider: "github", scopes: ["read:user", "user:email"], callbackURL: "/", disableRedirect: true });
+  expect(response.status).toBe(200);
+  expect(new URL(response.body.url).searchParams.get("scope")?.split(/[ ,]+/).sort()).toEqual(["read:user", "user:email"]);
+});
+
+test("真实认证意外失败进入 Express 清洗边界，不记录原始错误", async () => {
+  const { app, auth } = await realAuth();
+  const context = await auth.$context;
+  vi.spyOn(context.internalAdapter, "createVerificationValue")
+    .mockRejectedValue(new Error("PRIVATE-DB-DETAIL-SENTINEL"));
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  const response = await request(app).post("/api/auth/sign-in/social")
+    .set("Origin", env.PUBLIC_ORIGIN).send({ provider: "github", callbackURL: "/", disableRedirect: true });
+  expect(response.status).toBe(500);
+  expect(log).not.toHaveBeenCalled();
+  expect(response.body).toEqual({ error: "internal-error" });
+  expect(response.text).not.toContain("PRIVATE-DB-DETAIL-SENTINEL");
+  expect(response.headers["cache-control"]).toBe("no-store");
+});
+
 test("默认或缺模型配置不会探测，也不能生成假 AI 成功", async () => {
   const { loadConfig } = await import("../../src/server/config");
   const { activateTutor } = await import("../../src/server/main");
