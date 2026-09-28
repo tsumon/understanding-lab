@@ -4,13 +4,26 @@ import { createApp } from "./app";
 import { createAuth, createUserResolver, toAuthHandler } from "./auth";
 import { loadConfig, type Config } from "./config";
 import { openDatabase } from "./db";
-import { createOpenAITutorProvider, OpenAITutorError } from "./providers/openai";
+import { createOpenAITranscribeProvider, createOpenAITutorProvider, OpenAITutorError } from "./providers/openai";
 import type { TutorProvider } from "../tutor/service";
+import type { AppDeps } from "./app";
 
 const disabledTutor: TutorProvider = {
   model: "disabled",
   generate: async () => { throw new Error("unavailable"); },
 };
+
+export async function activateTranscribe(config: Config): Promise<AppDeps["audioProvider"]> {
+  if (!config.transcribeEnabled || !config.openaiApiKey || !config.openaiBaseURL || !config.transcribeModel) return null;
+  try {
+    return await createOpenAITranscribeProvider({
+      apiKey: config.openaiApiKey, baseURL: config.openaiBaseURL, transcribeModel: config.transcribeModel,
+    });
+  } catch (error) {
+    console.info(JSON.stringify({ event: "transcribe-unavailable", reason: error instanceof OpenAITutorError ? error.code : "provider" }));
+    return null;
+  }
+}
 
 /** One explicit, potentially billable probe per enabled process startup. Never retried or reactivated. */
 export async function activateTutor(config: Config, signal: AbortSignal): Promise<TutorProvider> {
@@ -34,10 +47,11 @@ export async function startService(config: Config, signal: AbortSignal) {
     if (!applied || !learning || !usage) throw new Error("migration-required");
     const auth = createAuth(db, config);
     const tutorProvider = await activateTutor(config, signal);
+    const audioProvider = await activateTranscribe(config);
     signal.throwIfAborted();
     const app = createApp({
       db, authHandler: toAuthHandler(auth), resolveUser: createUserResolver(auth), tutorProvider,
-      audioProvider: null, clock: () => new Date(), publicOrigin: config.publicOrigin,
+      audioProvider, clock: () => new Date(), publicOrigin: config.publicOrigin,
     });
     // A local reverse proxy terminates HTTPS; keep this process bound to loopback.
     const server = app.listen(config.port, "127.0.0.1");

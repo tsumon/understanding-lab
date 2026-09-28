@@ -32,6 +32,8 @@ test("服务拒绝缺少认证凭据与非 HTTPS 的公开配置", async () => {
   expect(loadConfig(env)).toMatchObject({ port: 3001, tutorEnabled: false });
   expect(loadConfig({ ...env, TUTOR_ENABLED: "true" })).toMatchObject({ tutorEnabled: true });
   expect(() => loadConfig({ ...env, TUTOR_ENABLED: "yes" })).toThrow("configuration");
+  expect(() => loadConfig({ ...env, TRANSCRIBE_ENABLED: "yes" })).toThrow("configuration");
+  expect(loadConfig(env)).toMatchObject({ transcribeEnabled: false });
 });
 
 test("SQLite 开启 foreign_keys 与 busy_timeout，显式迁移幂等", async () => {

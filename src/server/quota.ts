@@ -74,6 +74,12 @@ export class QuotaLedger {
       .run(new Date().toISOString(), ownerId, requestId);
   }
 
+  abortOperation(ownerId: string, requestId: string): void {
+    this.db.prepare(`UPDATE usage_operations SET state = 'aborted', finished_at = ?
+      WHERE owner_id = ? AND request_id = ? AND state IN ('reserved', 'in-flight')`)
+      .run(new Date().toISOString(), ownerId, requestId);
+  }
+
   private existingResult(existing: UsageRow, requestHash: string, cutoff: string): ReserveResult {
     if (existing.request_hash !== requestHash || !LIVE.has(existing.state)) return "already-used";
     return existing.started_at <= cutoff ? "already-used" : "in-flight";

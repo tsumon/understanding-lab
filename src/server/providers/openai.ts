@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 import { TutorWireSchema, tutorWireJsonSchema } from "../../tutor/schema";
 import { TutorProviderTimeoutError, type TutorProvider } from "../../tutor/service";
 
@@ -93,4 +93,38 @@ export async function createOpenAITutorProvider(config: OpenAITutorConfig, signa
     clearTimeout(timer);
     signal.removeEventListener("abort", cancel);
   }
+}
+
+export type AudioProvider = {
+  transcribe: (wav: Uint8Array, signal: AbortSignal) => Promise<string>;
+};
+
+export async function createOpenAITranscribeProvider(config: {
+  apiKey: string; baseURL: string; transcribeModel: string;
+}): Promise<AudioProvider> {
+  if (!config.apiKey.trim() || !config.transcribeModel.trim() || !config.baseURL.trim()) throw new OpenAITutorError("configuration");
+  let endpoint: URL;
+  try { endpoint = new URL(config.baseURL); }
+  catch { throw new OpenAITutorError("configuration"); }
+  if (!["https:", "http:"].includes(endpoint.protocol) || endpoint.username || endpoint.password
+    || endpoint.search || endpoint.hash) throw new OpenAITutorError("configuration");
+  const model = config.transcribeModel.trim();
+  const client = new OpenAI({ apiKey: config.apiKey, baseURL: endpoint.toString(), maxRetries: 0, timeout: 30000 });
+  return {
+    async transcribe(wav, signal) {
+      try {
+        signal.throwIfAborted();
+        const file = await toFile(wav, "speech.wav", { type: "audio/wav" });
+        const result = await client.audio.transcriptions.create(
+          { file, model, response_format: "json" },
+          { signal },
+        );
+        const text = "text" in result && typeof result.text === "string" ? result.text : "";
+        if (!text.trim()) throw new OpenAITutorError("empty");
+        return text;
+      } catch (error) {
+        throw providerError(error, signal);
+      }
+    },
+  };
 }

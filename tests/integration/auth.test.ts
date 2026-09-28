@@ -55,7 +55,7 @@ test("身份与 Origin 检查先于 JSON 解析", async () => {
 });
 
 test("未挂载的未来路由没有全局 128kb 限制", async () => {
-  const response = await request(createApp(await dependencies("user-a"))).post("/api/transcribe")
+  const response = await request(createApp(await dependencies("user-a"))).post("/api/unused")
     .set("Origin", "http://localhost:3001").send({ text: "x".repeat(200 * 1024) });
   expect(response.status).toBe(404);
 });

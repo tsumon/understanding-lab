@@ -35,13 +35,13 @@ AI 输出经过结构、引用、动作校验；一次教学操作最多两次�
 | 7 账号服务基础 | 完成并审阅 | 同源认证、SQLite 显式迁移、权限限制与日志脱敏；未跑真实 OAuth |
 | 8 账号记录与同步 | 完成并审阅 | 所有者隔离、CAS、幂等、墓碑删除、2MiB 会话路由、冲突保留与另存新尝试；离线重试复用 UUID / 幂等键；独立审阅 10/10 通过 |
 | 9 云端教学接线 | 完成并审阅 | 登录 UI、发送/保存分同意、POST /api/tutor、UTC 日额度 30/10、全局在途 4、退出清账号缓存；400 已按 consent/invalid 分流。真实 OAuth / 模型 / 双浏览器 live 未跑 |
-| 10 录音转写 | 未开始 | 可选 ≤60 秒录音、实际解码校验、编辑确认；本机未找到 FFmpeg |
+| 10 录音转写 | 已实现，待独立审阅 | 可选录音、服务端 FFmpeg 时长校验、转写填草稿不自动确认；本机未安装 FFmpeg，解码测试使用注入 spawn；真机麦克风未跑 |
 | 11 教学评测 | 未开始 | 42 条候选样本、真实人工标签；不得伪造审阅 |
 | 12 最终验收 | 未开始 | 全链路 / CI / 隐私验收、整体审阅、人工待办 |
 
 当前网页默认仍可匿名离线试玩。登录、保存到账号、发送给 AI 是分开的操作。未确认文字不进入云端正文；笔记默认不进模型。真实 GitHub OAuth 与计费模型仍未验收。视觉是功能布局，不是最终品牌设计。
 
-验证：合并后 `npm test` 20 个文件 189/189 通过，`tsc --noEmit` 通过。Task 8 独立审阅见[task8-independent-review.md](verification/task8-independent-review.md)。数值 6/6 仍对未改动的实验包有效。各自检查点和边界见[验证记录](verification/2026-09-28.md)。
+验证：Task 10 后 `npm test` 23 个文件 202/202 通过，`tsc --noEmit` 通过。Task 8 / 9 独立审阅见 verification/。数值 6/6 仍对未改动的实验包有效。各自检查点和边界见[验证记录](verification/2026-09-28.md)。
 
 ## 4. 接手需要知道的文件与接口
 
@@ -51,9 +51,9 @@ AI 输出经过结构、引用、动作校验；一次教学操作最多两次�
 | `content/`、`public/experiments/`、`src/experiment/` | 稳定材料 ID、审阅状态、数值包、指标与揭示规则 |
 | `src/client/App.tsx`、各 Panel | 本机学习流程与材料 / 实验 / 反馈 / 小结 |
 | `src/client/local-store.ts` | `DraftEnvelope`：未确认输入、按步骤草稿、探索状态 |
-| `src/client/ai-client.ts`、`auth-client.ts`、`sync.ts` | 请求保护、登录 helper、账号保存、POST /api/tutor 客户端 |
+| `src/client/ai-client.ts`、`auth-client.ts`、`sync.ts`、`recording.ts`、`Recorder.tsx` | 教学请求、登录、账号保存、可选录音与转写 |
 | `src/tutor/`、`src/server/providers/openai.ts` | 提示、wire schema、证据验证、受限调用和模型适配 |
-| `src/server/`、`session-routes.ts`、`sessions.ts`、`ai-routes.ts`、`quota.ts` | 同源服务、认证、会话 CAS、教学路由与额度 |
+| `src/server/`、`ai-routes.ts`、`quota.ts`、`audio.ts`、`audio-route.ts` | 同源服务、教学路由、额度、FFmpeg 解码与转写 |
 | `tests/`、`tools/experiment/` | JS / 浏览器 / SQLite / 数值验证和生成工具 |
 
 后续集成约束：
@@ -94,9 +94,9 @@ npm run build:offline
 
 ## 6. 接下来具体做什么
 
-顺序保持 **10 → 11 → 12**，不扩主题。
+顺序保持 **10 审阅 → 11 → 12**，不扩主题。
 
-1. **Task 10，可选语音。** 先落实可复现 FFmpeg 依赖。单文件 ≤10MiB、实际解码后 ≤60 秒、最多 2 个解码在途；参数数组启动进程、限制输入协议、输出 16kHz 单声道 PCM WAV。停止音轨、清理临时文件；转写先成为待编辑草稿，不自动评价。
+1. **Task 10 独立审阅。** 同意先于大文件；60/61 秒；轨道释放；转写不自动确认。
 2. **Task 11–12，冻结证据再验收。** 42 条候选分 28 开发 / 14 验收、7 类、独立案例族；人工标签未做就保留 null / pending，检查应失败。补 CI、全链路与最终整体审阅；人工材料复核、至少 40 条人工标签、5 位学习者观察和真机测试不能拿 mock 代替。
 
 跟踪小项：反馈指标不可用时应显示明确状态，当前会静默少一张卡；Service Worker 更新确认及 API / 非 GET / 跨源绕过需要专门浏览器断言；真实手机输入法、麦克风、完整无障碍审核仍未做。
@@ -121,4 +121,4 @@ git ls-remote origin refs/heads/codex/understanding-lab-mvp
 
 可直接交给下一位助手：
 
-> 请先读 README、docs/handoff.md、docs/decisions.md 和最新验证记录，再检查 Git 与实际代码。沿用已批准的 12 项计划，从 Task 10 继续；不重做离线内核，不把 mock 当真实 OAuth / 模型验收。简单任务 Luna，常规集成 Sol，架构 Astra。每个验证过的小任务更新交接、提交并推送现有私有分支，核对远端 SHA。保护未提交修改与隐私，不公开部署、不调用付费模型。
+> 请先读 README、docs/handoff.md、docs/decisions.md 和最新验证记录，再检查 Git 与实际代码。沿用已批准的 12 项计划，独立审阅 Task 10 后从 Task 11 继续；不重做离线内核，不把 mock 当真实 OAuth / 模型验收。简单任务 Luna，常规集成 Sol，架构 Astra。每个验证过的小任务更新交接、提交并推送现有私有分支，核对远端 SHA。保护未提交修改与隐私，不公开部署、不调用付费模型。

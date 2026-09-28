@@ -19,6 +19,7 @@
   "dependencies": {
     "better-auth": "1.7.6",
     "better-sqlite3": "13.0.3",
+    "busboy": "1.6.0",
     "express": "5.2.1",
     "helmet": "8.3.0",
     "openai": "7.23.0",
@@ -31,6 +32,7 @@
     "@testing-library/react": "16.3.0",
     "@testing-library/user-event": "14.6.1",
     "@types/better-sqlite3": "9.6.0",
+    "@types/busboy": "1.5.4",
     "@types/express": "5.0.6",
     "@types/node": "26.6.3",
     "@types/react": "19.3.0",

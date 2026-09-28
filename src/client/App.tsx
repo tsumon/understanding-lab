@@ -6,6 +6,7 @@ import { transitionExperiment, type Exploration } from "../experiment/exploratio
 import { clearConflict, clearOwnerCache, deleteDraft, rawDraftForExport, readConflict, readEnvelope, writeConflict, writeEnvelope, type CloudBinding, type ConflictCopy, type DraftEnvelope, type DraftSlot, type PendingSave } from "./local-store";
 import { forkAttempt, keepPending, prepareSave, synchronize } from "./sync";
 import { getSignedInUser, signInWithGitHub, signOut } from "./auth-client";
+import { Recorder } from "./Recorder";
 import { postTutor, TutorRequestGuard } from "./ai-client";
 import { MaterialPanel } from "./MaterialPanel";
 import { ExperimentPanel } from "./ExperimentPanel";
@@ -482,6 +483,7 @@ export function App() {
               <p className="question">{question}</p><label htmlFor="answer-text">我的解释</label>
               <textarea id="answer-text" aria-label="我的解释" rows={8} value={text} onChange={(event) => changeText(event.target.value)} placeholder="用自己的话写下来；未确认的文字只保存在本机草稿中。" />
               <p className="hint">{[...text].length} / 4000 字；只有按“确认这段解释”后才成为正式回答。</p>
+              <Recorder onTranscript={(value) => changeText(value)} />
               <button type="button" onClick={confirm}>确认这段解释</button>
               {current && <p className="confirmed">已确认第 {current.revision} 版。可以继续编辑并再次确认。</p>}
             </> : <p>调整参数观察训练与验证误差，可冻结选择后揭示测试结果。记录至少一次观察再继续。</p>}
@@ -520,7 +522,7 @@ export function App() {
       </section>
       <section className="card">
         <h2>发送给 AI</h2>
-        <p className="hint">发送给 AI 需要单独同意，不会自动长期保存到账号。私人笔记默认不发送。额度按 UTC 日期计算，每天最多 30 次教学、10 次转写（转写尚未接通）。发出请求不等于已经成功。</p>
+        <p className="hint">发送给 AI 需要单独同意，不会自动长期保存到账号。私人笔记默认不发送。额度按 UTC 日期计算，每天最多 30 次教学、10 次转写。发出请求不等于已经成功。</p>
         <label htmlFor="include-notes">
           <input id="include-notes" type="checkbox" checked={includeNotes} onChange={(event) => setIncludeNotes(event.target.checked)} />
           把私人笔记一并发送给模型

@@ -6,6 +6,7 @@ export type Config = Readonly<{
   githubClientId: string;
   githubClientSecret: string;
   tutorEnabled: boolean;
+  transcribeEnabled: boolean;
   tutorModel: string;
   transcribeModel: string;
   openaiApiKey: string;
@@ -28,12 +29,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const port = Number(rawPort);
   if (!/^\d+$/.test(rawPort) || !Number.isSafeInteger(port) || port < 1 || port > 65535) fail();
   const enabled = env.TUTOR_ENABLED ?? "false";
-  if (!["false", "true"].includes(enabled)) fail();
+  const transcribe = env.TRANSCRIBE_ENABLED ?? "false";
+  if (!["false", "true"].includes(enabled) || !["false", "true"].includes(transcribe)) fail();
   return {
     publicOrigin: url.origin, port, dbPath: env.DB_PATH?.trim() || "./data/understanding.sqlite",
     authSecret, githubClientId: required("GITHUB_CLIENT_ID"), githubClientSecret: required("GITHUB_CLIENT_SECRET"),
-    tutorEnabled: enabled === "true", tutorModel: env.TUTOR_MODEL?.trim() || "",
-    transcribeModel: env.TRANSCRIBE_MODEL?.trim() || "", openaiApiKey: env.OPENAI_API_KEY?.trim() || "",
-    openaiBaseURL: env.OPENAI_BASE_URL?.trim() || "",
+    tutorEnabled: enabled === "true", transcribeEnabled: transcribe === "true",
+    tutorModel: env.TUTOR_MODEL?.trim() || "", transcribeModel: env.TRANSCRIBE_MODEL?.trim() || "",
+    openaiApiKey: env.OPENAI_API_KEY?.trim() || "", openaiBaseURL: env.OPENAI_BASE_URL?.trim() || "",
   };
 }

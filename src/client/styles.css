@@ -31,6 +31,7 @@ a { overflow-wrap: anywhere; }
 .warning, .warning-card { color: #8a3a24; }
 .account-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 0.5rem 0 0; }
 .account-bar p { margin: 0; }
+.recorder { margin: 0.8rem 0; padding-top: 0.4rem; border-top: 1px solid #d5e0e6; }
 .sync-status { font-size: 0.9rem; color: #385664; margin: 0.35rem 0 0; }
 .sync-status[data-state="conflict"], .sync-status[data-state="deleted"] { color: #8a3a24; font-weight: 650; }
 .sync-status[data-state="synced"] { color: #275f43; }

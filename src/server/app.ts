@@ -5,6 +5,7 @@ import type { IncomingHttpHeaders } from "node:http";
 import type Database from "better-sqlite3";
 import type { TutorProvider } from "../tutor/service";
 import { mountAiRoutes } from "./ai-routes";
+import { mountAudioRoutes } from "./audio-route";
 import { mountSessionRoutes } from "./session-routes";
 
 export type AppDeps = {
@@ -15,6 +16,7 @@ export type AppDeps = {
   audioProvider: {
     transcribe: (wav: Uint8Array, signal: AbortSignal) => Promise<string>;
   } | null;
+  normalizeAudio?: (input: Uint8Array, signal: AbortSignal) => Promise<Uint8Array>;
   clock: () => Date;
   publicOrigin: string;
 };
@@ -56,6 +58,7 @@ export function createApp(deps: AppDeps): Express {
   });
   mountSessionRoutes(app, deps.db);
   mountAiRoutes(app, deps);
+  mountAudioRoutes(app, deps);
   app.use("/api", (_req, res) => { res.status(404).json({ error: "not-found" }); });
 
   const publicDir = fileURLToPath(new URL("../../dist/", import.meta.url));
