@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Answer, LearningSession, StoredFeedback } from "../domain/contracts";
+import { RECOVERED_FEEDBACK_MODEL, type Answer, type LearningSession, type StoredFeedback } from "../domain/contracts";
 import { metricFor, type ExperimentPack } from "../experiment/catalog";
 import type { Topic } from "../tutor/verify";
 
@@ -20,7 +20,8 @@ export function FeedbackPanel({ feedback, session, topic, pack, onQuote, onDisag
   const output = feedback.output;
 
   return <section className="card feedback-card" aria-label="教学反馈">
-    <p className="eyebrow">AI 教学反馈 · 结构已校验</p>
+    <p className="eyebrow">{feedback.model === RECOVERED_FEEDBACK_MODEL
+      ? "本机恢复的反馈 · 不能当作模型调用证明" : "AI 教学反馈 · 结构已校验"}</p>
     <h2>{output.claim}</h2>
     <p className="preserve-breaks">{output.reason}</p>
     {output.question && <p className="question">追问：{output.question}</p>}

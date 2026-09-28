@@ -38,6 +38,9 @@ export type LearningSession = {
   notes: string; feedback: StoredFeedback[];
   disagreements: { feedbackId: string; reason: string; createdAt: string }[];
 };
+export type SavedSession = { session: LearningSession; serverRevision: number };
+export const RECOVERED_FEEDBACK_MODEL = "本机恢复";
+export const RECOVERED_FEEDBACK_PROMPT_VERSION = "local-recovery-v1";
 
 const codepointLengthAtMost = (limit: number) =>
   z.string().refine((value) => [...value].length <= limit, `最多 ${limit} 个字符`);

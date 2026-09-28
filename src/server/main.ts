@@ -29,7 +29,8 @@ export async function startService(config: Config, signal: AbortSignal) {
   try {
     // Read-only startup gate: the explicit migration command must have already run.
     const applied = db.prepare("SELECT version FROM schema_migrations WHERE version = 1").get();
-    if (!applied) throw new Error("migration-required");
+    const learning = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='learning_sessions'").get();
+    if (!applied || !learning) throw new Error("migration-required");
     const auth = createAuth(db, config);
     const tutorProvider = await activateTutor(config, signal);
     signal.throwIfAborted();

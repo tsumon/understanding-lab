@@ -28,7 +28,8 @@ const permittedActions: Record<LearningSession["step"], readonly TutorOutput["ne
   reexplain: ["transfer"], transfer: ["summary"], summary: ["summary"],
 };
 
-export function verifyTutor(raw: unknown, context: TutorContext): TutorOutput {
+/** Stored history keeps exact old revisions; current navigation rules do not rewrite history. */
+export function verifyHistoricalTutor(raw: unknown, context: TutorContext): TutorOutput {
   const parsed = TutorOutputSchema.safeParse(raw);
   if (!parsed.success) throw new VerificationError("schema");
   const output = parsed.data;
@@ -38,9 +39,6 @@ export function verifyTutor(raw: unknown, context: TutorContext): TutorOutput {
   if ((output.kind === "supported" || output.kind === "contradiction") && output.quotes.length === 0) throw new VerificationError("quote");
   for (const quote of output.quotes) {
     if (!verifyQuote(quote, session.answers)) throw new VerificationError("quote");
-    if (session.answers.some((answer) => answer.id === quote.answerId && answer.revision > quote.answerRevision)) {
-      throw new VerificationError("quote");
-    }
   }
 
   if ((output.kind === "supported" || output.kind === "contradiction") && output.sources.length + output.metrics.length === 0) {
@@ -59,6 +57,18 @@ export function verifyTutor(raw: unknown, context: TutorContext): TutorOutput {
   }
   // Model prose may not supply numeric results; display cards resolve metric references in code.
   if ([output.claim, output.reason, output.question ?? ""].some((value) => /[0-9０-９]/u.test(value))) throw new VerificationError("metric");
+
+  return output;
+}
+
+export function verifyTutor(raw: unknown, context: TutorContext): TutorOutput {
+  const output = verifyHistoricalTutor(raw, context);
+  const { session } = context;
+  for (const quote of output.quotes) {
+    if (session.answers.some((answer) => answer.id === quote.answerId && answer.revision > quote.answerRevision)) {
+      throw new VerificationError("quote");
+    }
+  }
 
   if (!permittedActions[session.step].includes(output.nextAction)
     || (output.nextAction === "ask" && (session.clarificationCount >= 2 || !output.question?.trim()))

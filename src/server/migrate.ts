@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { createAuth, type Auth } from "./auth";
 import { loadConfig } from "./config";
 import { openDatabase } from "./db";
+import { SessionRepository } from "./sessions";
 
 const migrations = [{ version: 1, name: "initialize-migration-ledger", sql: `
   CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -26,6 +27,7 @@ export async function migrate(db: Database.Database, auth: Auth): Promise<void> 
         .run(migration.version, migration.name, new Date().toISOString());
     })();
   }
+  new SessionRepository(db).migrate();
 }
 
 async function main() {

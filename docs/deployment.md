@@ -21,7 +21,7 @@ npm run server
 
 迁移只通过 `db:migrate` 显式运行：先执行已安装 Better Auth 的官方迁移，再按顺序写入自有 `schema_migrations`。重复运行幂等。启动与请求不迁移 schema；未迁移时服务启动失败。依赖升级先备份数据库，并在隔离副本验证迁移。
 
-服务绑定 `127.0.0.1:3001`，由同机反向代理终止 HTTPS，转发整个站点（页面、资源、`/api`）到此服务。`PUBLIC_ORIGIN` 必须等于浏览器看到的 Origin。不要直接公开本机 HTTP 端口。身份和 Origin 检查先于自有 JSON 解析；`/api/me` 的 JSON 限制为 128kb，未来会话保存使用独立 2MiB parser，教学 JSON 保持 128kb。Better Auth 处理器先于 parser 注册，负责 OAuth 状态与 CSRF；自有写 API 额外要求精确匹配 Origin。没有跨域 cookie/CORS 开放。Helmet 提供 CSP，脚本仅允许自身；应用不渲染用户 raw HTML。
+服务绑定 `127.0.0.1:3001`，由同机反向代理终止 HTTPS，转发整个站点（页面、资源、`/api`）到此服务。`PUBLIC_ORIGIN` 必须等于浏览器看到的 Origin。不要直接公开本机 HTTP 端口。身份和 Origin 检查先于自有 JSON 解析；`/api/me` 的 JSON 限制为 128kb，`PUT /api/sessions/:id` 使用独立 2MiB parser，教学 JSON 保持 128kb。Better Auth 处理器先于 parser 注册，负责 OAuth 状态与 CSRF；自有写 API 额外要求精确匹配 Origin。没有跨域 cookie/CORS 开放。Helmet 提供 CSP，脚本仅允许自身；应用不渲染用户 raw HTML。
 
 Vite 开发服务器将 `/api` 代理到本机 3001。需要测试账号登录时，让 `PUBLIC_ORIGIN` 精确匹配 Vite 的实际 Origin 和 OAuth 回调；`npm run dev` 仍不依赖服务存在。生产构建不向客户端暴露服务端环境变量。
 

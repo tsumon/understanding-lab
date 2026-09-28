@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { newSession } from "../../src/domain/contracts";
-import { readEnvelope, writeEnvelope, deleteDraft, rawDraftForExport } from "../../src/client/local-store";
+import { readEnvelope, writeEnvelope, deleteDraft, rawDraftForExport, writeConflict, readConflict, clearConflict } from "../../src/client/local-store";
 
 const id = "draft-test";
 const key = `understanding-lab:v1:anonymous:${id}`;
@@ -35,6 +35,25 @@ describe("anonymous local drafts", () => {
     expect(rawDraftForExport(id)).toBe("{damaged draft");
     expect(writeEnvelope(id, envelope())).toEqual({ ok: false, reason: "unavailable" });
     expect(localStorage.getItem(key)).toBe("{damaged draft");
+  });
+
+  it("lets the working current slot keep a UUID attempt identity after account save", () => {
+    const uuid = { ...envelope(), session: newSession("attempt-uuid"), binding: { ownerId: "alice", id: "attempt-uuid", serverRevision: 1 } };
+    expect(writeEnvelope("current", uuid)).toEqual({ ok: true });
+    expect(readEnvelope("current")?.session.id).toBe("attempt-uuid");
+    expect(readEnvelope("current")?.binding).toEqual(uuid.binding);
+  });
+
+  it("keeps a conflict copy through a later local draft write", () => {
+    const local = envelope();
+    const cloud = { session: newSession(id), serverRevision: 2 };
+    expect(writeEnvelope(id, local)).toEqual({ ok: true });
+    expect(writeConflict(id, { local, cloud })).toEqual({ ok: true });
+    expect(writeEnvelope(id, { ...local, unconfirmedText: "继续编辑" })).toEqual({ ok: true });
+    expect(readConflict(id)).toEqual({ local, cloud });
+    clearConflict(id);
+    expect(readConflict(id)).toBeNull();
+    expect(readEnvelope(id)?.unconfirmedText).toBe("继续编辑");
   });
 
   it("reports quota failures without replacing the previous value", () => {

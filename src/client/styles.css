@@ -29,6 +29,9 @@ a { overflow-wrap: anywhere; }
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0 0.5rem; }
 .confirmed { margin-top: 0.8rem; color: #275f43; }
 .warning, .warning-card { color: #8a3a24; }
+.sync-status { font-size: 0.9rem; color: #385664; margin: 0.35rem 0 0; }
+.sync-status[data-state="conflict"], .sync-status[data-state="deleted"] { color: #8a3a24; font-weight: 650; }
+.sync-status[data-state="synced"] { color: #275f43; }
 .save-error { border: 1px solid #b66249; background: #fff5ef; border-radius: 6px; padding: 0.8rem; margin: 0.6rem 0; }
 .save-error button { margin-left: 0.5rem; }
 .export-link { background: transparent; color: #16546c; margin-top: 0.4rem; }

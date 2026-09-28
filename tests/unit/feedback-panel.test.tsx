@@ -3,7 +3,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import topicJson from "../../content/overfitting.v1.json";
 import packJson from "../../public/experiments/overfitting.v1.json";
-import { newSession, TopicSchema, type StoredFeedback } from "../../src/domain/contracts";
+import { newSession, RECOVERED_FEEDBACK_MODEL, RECOVERED_FEEDBACK_PROMPT_VERSION, TopicSchema, type StoredFeedback } from "../../src/domain/contracts";
 import { parsePack } from "../../src/experiment/catalog";
 import { FeedbackPanel } from "../../src/client/FeedbackPanel";
 
@@ -33,6 +33,12 @@ test("renders model strings as text, resolves topic links, and navigates the cit
   fireEvent.click(screen.getByRole("button", { name: /第 1 版原话/ }));
   expect(onQuote).toHaveBeenCalledWith(answer);
   expect(screen.getByText(/结构校验不保证语义正确/)).toBeTruthy();
+});
+
+test("labels recovered local feedback so it cannot be mistaken for a model call", () => {
+  render(<FeedbackPanel feedback={{ ...feedback, model: RECOVERED_FEEDBACK_MODEL, promptVersion: RECOVERED_FEEDBACK_PROMPT_VERSION }}
+    session={session} topic={topic} pack={pack} onQuote={vi.fn()} onDisagree={vi.fn()} />);
+  expect(screen.getByText("本机恢复的反馈 · 不能当作模型调用证明")).toBeTruthy();
 });
 
 test("does not link unapproved references or reveal hidden test values", () => {
