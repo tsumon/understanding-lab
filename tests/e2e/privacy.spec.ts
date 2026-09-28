@@ -20,6 +20,26 @@ test("export is a local recovery file without cookies, tokens, or secrets", asyn
   expect(body).not.toMatch(/cookie|token|BETTER_AUTH|GITHUB_CLIENT_SECRET|OPENAI_API_KEY|sk-/i);
 });
 
+test("service worker does not cache API, non-GET, or cross-origin requests", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("公共材料与实验数据已缓存，可离线使用")).toBeVisible({ timeout: 15000 });
+  const probe = await page.evaluate(async () => {
+    const post = await fetch("/api/tutor", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })
+      .then((response) => ({ status: response.status, type: response.headers.get("content-type") ?? "" }))
+      .catch(() => ({ status: 0, type: "network-error" }));
+    const cached: string[] = [];
+    for (const name of await caches.keys()) {
+      for (const request of await (await caches.open(name)).keys()) {
+        cached.push(`${request.method} ${new URL(request.url).pathname}`);
+      }
+    }
+    return { post, cached };
+  });
+  expect(probe.cached.some((entry) => entry.includes("/api/"))).toBe(false);
+  expect(probe.cached.every((entry) => entry.startsWith("GET "))).toBe(true);
+  if (probe.post.status === 200) expect(probe.post.type).not.toMatch(/html/i);
+});
+
 test("production bundle and service worker allowlist omit secrets and API bodies", async () => {
   const dist = join(process.cwd(), "dist");
   const assets = readdirSync(join(dist, "assets"));

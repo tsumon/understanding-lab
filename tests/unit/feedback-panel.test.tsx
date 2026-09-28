@@ -49,6 +49,15 @@ test("does not link unapproved references or reveal hidden test values", () => {
   render(<FeedbackPanel feedback={altered} session={session} topic={topic} pack={pack} onQuote={vi.fn()} onDisagree={vi.fn()} />);
   expect(screen.queryByRole("link")).toBeNull();
   expect(screen.queryByText(/测试 MSE/)).toBeNull();
+  expect(screen.getByText("引用的测试误差尚未揭示，不显示数值。")).toBeTruthy();
+});
+
+test("shows an explicit status when a cited metric cannot be loaded", () => {
+  const altered = { ...feedback, output: { ...feedback.output,
+    metrics: [{ snapshotId: "missing", metric: "trainMse" as const }],
+  } };
+  render(<FeedbackPanel feedback={altered} session={session} topic={topic} pack={null} onQuote={vi.fn()} onDisagree={vi.fn()} />);
+  expect(screen.getByText("实验数值暂不可用：找不到对应的实验记录。")).toBeTruthy();
 });
 
 test("records at most 1000 code points of disagreement without hiding feedback", () => {

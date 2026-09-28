@@ -46,13 +46,24 @@ export function FeedbackPanel({ feedback, session, topic, pack, onQuote, onDisag
       </li>;
     })}</ul></div>}
 
-    {pack && output.metrics.length > 0 && <div><h3>实验数值</h3><ul>{output.metrics.map((citation, index) => {
+    {output.metrics.length > 0 && <div><h3>实验数值</h3><ul>{output.metrics.map((citation, index) => {
+      const key = `${citation.snapshotId}:${citation.metric}:${index}`;
       const snapshot = session.snapshots.find((item) => item.id === citation.snapshotId);
-      if (!snapshot || (citation.metric === "testMse" && !snapshot.testRevealed)) return null;
+      if (!snapshot) {
+        return <li key={key}>实验数值暂不可用：找不到对应的实验记录。</li>;
+      }
+      if (citation.metric === "testMse" && !snapshot.testRevealed) {
+        return <li key={key}>引用的测试误差尚未揭示，不显示数值。</li>;
+      }
+      if (!pack) {
+        return <li key={key}>{metricLabels[citation.metric]} 暂不可用：实验数据未加载。</li>;
+      }
       try {
         const value = metricFor(pack, snapshot, citation.metric);
-        return <li key={`${citation.snapshotId}:${citation.metric}:${index}`}>{metricLabels[citation.metric]} {value.toFixed(4)}（记录 {citation.snapshotId}）</li>;
-      } catch { return null; }
+        return <li key={key}>{metricLabels[citation.metric]} {value.toFixed(4)}（记录 {citation.snapshotId}）</li>;
+      } catch {
+        return <li key={key}>{metricLabels[citation.metric]} 暂不可用：无法核对这次引用。</li>;
+      }
     })}</ul></div>}
 
     <p className="hint">结构校验不保证语义正确；教学判断仍待人工评测。</p>

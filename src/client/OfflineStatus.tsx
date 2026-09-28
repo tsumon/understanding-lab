@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
-export function OfflineStatus() {
+export function OfflineStatus({ enabled = import.meta.env.PROD }: { enabled?: boolean } = {}) {
   const [ready, setReady] = useState(false);
   const [update, setUpdate] = useState<ServiceWorker | null>(null);
   useEffect(() => {
-    if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
+    if (!enabled || !("serviceWorker" in navigator)) return;
     let active = true;
     const onMessage = (event: MessageEvent) => {
       if (active && event.data?.type === "CACHE_READY") setReady(true);
@@ -29,7 +29,7 @@ export function OfflineStatus() {
       if (active) setReady(false);
     });
     return () => { active = false; navigator.serviceWorker.removeEventListener("message", onMessage); };
-  }, []);
+  }, [enabled]);
   return <div className="offline-status" aria-live="polite">
     {ready ? "公共材料与实验数据已缓存，可离线使用" : "公共离线缓存尚未确认"}
     {update && <button type="button" onClick={() => {
