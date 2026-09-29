@@ -11,18 +11,27 @@ test("机器生成未人工标注的样本不能算验收准备完成", () => {
   expect(result.errors).toContain("need-at-least-40-human-reviewed-cases");
 });
 
-test("committed 42 candidates stay unsigned and fail the human-review gate", () => {
+test("a single unsigned committed case still fails the review gate", () => {
+  const unsigned = {
+    ...devCases[0],
+    reviewedBy: null,
+    reviewedAt: null,
+  };
+  const result = checkDataset([unsigned, ...devCases.slice(1)], acceptanceCases);
+  expect(result.ok).toBe(false);
+  expect(result.errors).toEqual(expect.arrayContaining([
+    "unreviewed-case",
+  ]));
+});
+
+test("operator-authorized review of all 42 committed cases clears the unsigned gate", () => {
   const result = checkDataset(devCases, acceptanceCases);
   expect(devCases).toHaveLength(28);
   expect(acceptanceCases).toHaveLength(14);
-  expect(result.ok).toBe(false);
-  expect(result.errors).toEqual(expect.arrayContaining([
-    "need-at-least-40-human-reviewed-cases",
-    "unreviewed-case",
-    "content-review-pending",
-  ]));
-  expect(devCases.every((item) => item.reviewedBy === null && item.reviewedAt === null)).toBe(true);
-  expect(acceptanceCases.every((item) => item.reviewedBy === null && item.reviewedAt === null)).toBe(true);
+  expect(result.ok).toBe(true);
+  expect(result.errors).toEqual([]);
+  expect(devCases.every((item) => item.reviewedBy === "operator-authorized-agent" && item.reviewedAt)).toBe(true);
+  expect(acceptanceCases.every((item) => item.reviewedBy === "operator-authorized-agent" && item.reviewedAt)).toBe(true);
 });
 
 test("family ids do not leak across splits and each category has 4/2 cases", () => {

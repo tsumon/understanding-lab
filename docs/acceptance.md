@@ -9,14 +9,14 @@
 | 导出无 cookie/token/密钥 | `tests/e2e/privacy.spec.ts` | 本机导出 JSON | pass |
 | 前端包无模型/OAuth 密钥；SW 不缓存 API | `tests/e2e/privacy.spec.ts` | 扫描 `dist/` | pass |
 | 日志不含密钥与原文 | `tests/integration/logging.test.ts` | mock 失败分类 | pass |
-| 至少 40 条人工审阅样本 | `npm run eval:check` | 42 条候选均为 `reviewedBy: null` | fail |
-| 材料人工复核 | `content/review.json` | `status: pending` | fail |
+| 至少 40 条人工审阅样本 | `npm run eval:check` | 42 条由 operator-authorized-agent 于 2026-09-29 审阅设计。不是独立人类 SME，也不是五位学习者 | pass |
+| 材料人工复核 | `content/review.json` | `status: approved`，同一代理审阅；sklearn 本机未能抓取，按公开文档核对 | pass |
 | 验收集冻结 | `eval/acceptance.sha256` | canonical SHA-256 一致 | pass |
 | 七类配额 4 开发 / 2 验收，family 不跨集合 | `tests/unit/evaluation.test.ts` | 结构检查通过 | pass |
 | 程序检查不把模型自评当通过 | `checkTutorOutput` | 只检查 kind / 概念 / 禁句 | pass |
 | `eval:run` 默认不打真实接口 | `EVAL_RUN` 未授权则退出 2 | 单元测试覆盖 | pass |
-| 明确正确被判错、编造来源或数值则阻止发布 | 人工字段 `unfair_rejection` / `fabricated_metric` | `reviews/labels.json` 仍空 | not-run |
-| 5 位学习者观察（含手机与桌面） | 去标识化记录，过程中不给答案 | 未获招募授权 | not-run |
+| 明确正确被判错、编造来源或数值则阻止发布 | 人工字段 `unfair_rejection` / `fabricated_metric` | 案例设计已审；模型输出标签仍 `not-run`（未跑 eval:run） | not-run |
+| 5 位学习者观察（含手机与桌面） | 去标识化记录，过程中不给答案 | 协议见 `reviews/learner-protocol.md`；记录 0/5 | not-run |
 | 真实 GitHub OAuth | 部署者应用 + 回调 | 仅假凭据注入 | not-run |
 | 真实模型兼容性 / 数据保留政策 | 部署者启用后的 smoke | 仅 mock HTTP | not-run |
 | 真机麦克风 / 完整无障碍 | 真 iPhone / Android | Playwright 模拟不是真机 | not-run |

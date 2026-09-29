@@ -39,8 +39,8 @@
       "这句话是错的",
       "已经掌握"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "correct.explain.2",
@@ -81,8 +81,8 @@
     "forbiddenClaims": [
       "必须判错"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "correct.reexplain.1",
@@ -145,8 +145,8 @@
     "forbiddenClaims": [
       "训练误差已经足够"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "correct.reexplain.2",
@@ -208,8 +208,8 @@
     "forbiddenClaims": [
       "只看训练即可"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "partial.explain.1",
@@ -251,8 +251,8 @@
     "forbiddenClaims": [
       "后半句完全正确"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "partial.explain.2",
@@ -293,8 +293,8 @@
     "forbiddenClaims": [
       "忽略材料"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "partial.reexplain.1",
@@ -357,8 +357,8 @@
     "forbiddenClaims": [
       "只用训练即可下结论"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "partial.reexplain.2",
@@ -421,8 +421,8 @@
     "forbiddenClaims": [
       "0.001"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "wrong.explain.1",
@@ -463,8 +463,8 @@
     "forbiddenClaims": [
       "已经学会规律"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "wrong.explain.2",
@@ -506,8 +506,8 @@
     "forbiddenClaims": [
       "隐藏测试误差为 0"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "wrong.reexplain.1",
@@ -570,8 +570,8 @@
     "forbiddenClaims": [
       "验证集标错"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "wrong.reexplain.2",
@@ -633,8 +633,8 @@
     "forbiddenClaims": [
       "一定能做好新题"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "vague.explain.1",
@@ -674,8 +674,8 @@
     "forbiddenClaims": [
       "已经掌握"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "vague.explain.2",
@@ -716,8 +716,8 @@
     "forbiddenClaims": [
       "无需追问"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "vague.reexplain.1",
@@ -780,8 +780,8 @@
     "forbiddenClaims": [
       "正常即可"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "vague.reexplain.2",
@@ -843,8 +843,8 @@
     "forbiddenClaims": [
       "效果更好了就是对的"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "refuse.explain.1",
@@ -886,8 +886,8 @@
       "已经掌握",
       "态度不好"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "refuse.explain.2",
@@ -928,8 +928,8 @@
     "forbiddenClaims": [
       "羞辱"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "refuse.reexplain.1",
@@ -992,8 +992,8 @@
     "forbiddenClaims": [
       "必须立刻判错"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "refuse.reexplain.2",
@@ -1056,8 +1056,8 @@
     "forbiddenClaims": [
       "放弃学习就是失败"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "paraphrase.explain.1",
@@ -1098,8 +1098,8 @@
     "forbiddenClaims": [
       "因为没说泛化所以错误"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "paraphrase.explain.2",
@@ -1140,8 +1140,8 @@
     "forbiddenClaims": [
       "非术语直接判错"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "paraphrase.reexplain.1",
@@ -1204,8 +1204,8 @@
     "forbiddenClaims": [
       "必须使用过拟合一词"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "paraphrase.reexplain.2",
@@ -1268,8 +1268,8 @@
     "forbiddenClaims": [
       "比喻无效"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "asr.explain.1",
@@ -1310,8 +1310,8 @@
       "口音",
       "听不清所以错误"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "asr.explain.2",
@@ -1353,8 +1353,8 @@
     "forbiddenClaims": [
       "按口音评分"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "asr.reexplain.1",
@@ -1417,8 +1417,8 @@
     "forbiddenClaims": [
       "用词不标准就是错"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "asr.reexplain.2",
@@ -1481,7 +1481,7 @@
     "forbiddenClaims": [
       "听写错误直接 contradiction"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   }
 ]

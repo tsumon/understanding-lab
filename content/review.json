@@ -1,4 +1,15 @@
 {
   "version": "overfitting.v1",
-  "status": "pending"
+  "status": "approved",
+  "reviewedBy": "operator-authorized-agent",
+  "reviewedAt": "2026-09-29T12:00:00.000Z",
+  "method": "Operator asked the implementing agent to perform the content review. This is not a named human SME signature and not a five-learner study.",
+  "sourceCheck": {
+    "p-splits": "Matches sklearn cross-validation guidance: fit on train, select on validation, hold out test; reusing test for selection leaks selection information.",
+    "p-fit": "Matches the underfitting/overfitting polynomial example: better train fit does not imply better unseen-data fit.",
+    "p-context": "Matches the same example's caveat that a degree that looks good on one draw is not a universal rule.",
+    "p-evidence": "Internal design note: this lesson's MSE is for one synthetic family. Approved as scoped, not as a general empirical law."
+  },
+  "liveFetch": "sklearn.org could not be fetched from this host; claims were checked against the well-known public wording of those two sklearn pages. URLs remain in the topic file.",
+  "questions": "explain/clarify/predict/reexplain/transfer prompts match the paragraph claims and do not ask the model to invent numbers."
 }

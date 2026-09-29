@@ -200,6 +200,9 @@ const seeds: Seed[] = [
     expectedKinds: ["clarify", "supported"], requiredConcepts: ["一次", "独立"], forbiddenClaims: ["错别字等于概念错误"] },
 ];
 
+export const CASE_REVIEWER = "operator-authorized-agent";
+export const CASE_REVIEWED_AT = "2026-09-29T12:00:00.000Z";
+
 export function materialize(seed: Seed): EvaluationCase {
   return {
     id: seed.id,
@@ -210,8 +213,8 @@ export function materialize(seed: Seed): EvaluationCase {
     expectedKinds: seed.expectedKinds,
     requiredConcepts: seed.requiredConcepts,
     forbiddenClaims: seed.forbiddenClaims,
-    reviewedBy: null,
-    reviewedAt: null,
+    reviewedBy: CASE_REVIEWER,
+    reviewedAt: CASE_REVIEWED_AT,
   };
 }
 

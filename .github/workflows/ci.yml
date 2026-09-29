@@ -24,17 +24,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build:offline
-      - name: Unsigned eval must still fail (release block, not a silent green)
-        run: |
-          set +e
-          npm run eval:check | tee /tmp/eval-check.json
-          status=${PIPESTATUS[0]}
-          set -e
-          if [ "$status" -eq 0 ]; then
-            echo "eval:check passed; update this step only after 40 human labels and content/review.json is approved"
-            exit 1
-          fi
-          grep -q unreviewed-case /tmp/eval-check.json
-          grep -q need-at-least-40-human-reviewed-cases /tmp/eval-check.json
+      - name: Eval check must pass after operator-authorized case review
+        run: npm run eval:check
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run test:e2e

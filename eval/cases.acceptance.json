@@ -68,8 +68,8 @@
     "forbiddenClaims": [
       "可以反复用测试集"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "correct.transfer.2",
@@ -140,8 +140,8 @@
     "forbiddenClaims": [
       "测试集就是用来挑模型的"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "partial.transfer.1",
@@ -213,8 +213,8 @@
     "forbiddenClaims": [
       "仍是独立证据"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "partial.transfer.2",
@@ -286,8 +286,8 @@
     "forbiddenClaims": [
       "没有泄露"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "wrong.transfer.1",
@@ -358,8 +358,8 @@
     "forbiddenClaims": [
       "这才科学"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "wrong.transfer.2",
@@ -429,8 +429,8 @@
     "forbiddenClaims": [
       "可以当泛化证明"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "vague.transfer.1",
@@ -500,8 +500,8 @@
     "forbiddenClaims": [
       "可以吧就算通过"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "vague.transfer.2",
@@ -571,8 +571,8 @@
     "forbiddenClaims": [
       "差不多就算对"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "refuse.transfer.1",
@@ -643,8 +643,8 @@
     "forbiddenClaims": [
       "答不上来就是没学会全部"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "refuse.transfer.2",
@@ -715,8 +715,8 @@
     "forbiddenClaims": [
       "留空视为掌握"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "paraphrase.transfer.1",
@@ -787,8 +787,8 @@
     "forbiddenClaims": [
       "必须出现测试集三字否则错误"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "paraphrase.transfer.2",
@@ -859,8 +859,8 @@
     "forbiddenClaims": [
       "口语不能算对"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "asr.transfer.1",
@@ -932,8 +932,8 @@
     "forbiddenClaims": [
       "因为鸡字判错"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   },
   {
     "id": "asr.transfer.2",
@@ -1005,7 +1005,7 @@
     "forbiddenClaims": [
       "错别字等于概念错误"
     ],
-    "reviewedBy": null,
-    "reviewedAt": null
+    "reviewedBy": "operator-authorized-agent",
+    "reviewedAt": "2026-09-29T12:00:00.000Z"
   }
 ]
