@@ -113,6 +113,35 @@ test("429 is shown as quota, not as a learning-step judgment", async () => {
   expect(screen.queryByRole("region", { name: "教学反馈" })).toBeNull();
 });
 
+test("save as new attempt while signed in stays in the owner cache", async () => {
+  const local = envelope("本机冲突稿");
+  const cloud = { session: { ...newSession("cloud-id"), notes: "云端稿" }, serverRevision: 2 };
+  expect(writeEnvelope("current", { ...local, binding: { ownerId: "alice", id: "cloud-id", serverRevision: 1 } }, "alice")).toEqual({ ok: true });
+  fetchStub((url, init) => {
+    if (url.includes("/api/sessions/") && (init?.method ?? "GET").toUpperCase() === "PUT") {
+      return new Response("{}", { status: 409 });
+    }
+    if (url.includes("/api/sessions/") && url !== "/api/sessions") {
+      return new Response(JSON.stringify(cloud), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ sessions: [cloud] }), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  auth.getSignedInUser.mockResolvedValue({ id: "alice" });
+  const { App } = await import("../../src/client/App");
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "登录" }));
+  await screen.findByText("当前账号 alice");
+  fireEvent.click(screen.getByRole("button", { name: "保存到账号" }));
+  await screen.findByRole("heading", { name: "与账号中的版本冲突" });
+  fireEvent.click(screen.getByRole("button", { name: "另存为新尝试" }));
+  await waitFor(() => expect(screen.getByText("仅本机")).toBeTruthy());
+  const owner = JSON.parse(localStorage.getItem(draftStorageKey("current", "alice"))!);
+  expect(owner.session.notes).toBe("本机冲突稿");
+  expect(owner.session.id).not.toBe("cloud-id");
+  expect(owner.binding).toBeNull();
+  expect(localStorage.getItem(draftStorageKey("current"))).toBeNull();
+});
+
 test("login hydrates the latest cloud attempt when this device has no owner draft", async () => {
   const cloudSession = { ...newSession("from-cloud"), notes: "另一台设备上的笔记" };
   fetchStub((url) => {

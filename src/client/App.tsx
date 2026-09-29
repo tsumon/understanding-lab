@@ -76,8 +76,7 @@ export function App() {
   const [tutorBusy, setTutorBusy] = useState(false);
   const [signOutPrompt, setSignOutPrompt] = useState(false);
 
-  const persistOwner = (nextBinding = binding, nextUser = userId) =>
-    nextUser && nextBinding?.ownerId === nextUser ? nextUser : null;
+  const persistOwner = (nextUser = userId) => nextUser || null;
 
   useEffect(() => {
     fetch("/experiments/overfitting.v1.json").then((response) => {
@@ -234,7 +233,7 @@ export function App() {
     }
     if (outcome.status === "conflict") {
       setConflict(outcome);
-      writeConflict(draftId, { local: outcome.local, cloud: outcome.cloud }, persistOwner(binding, user.id));
+      writeConflict(draftId, { local: outcome.local, cloud: outcome.cloud }, persistOwner(user.id));
       setSyncState("conflict");
       return;
     }
@@ -268,7 +267,7 @@ export function App() {
     setPendingSave(null);
     lastPushed.current = JSON.stringify(cloud.session);
     setSyncState(nextBinding ? "synced" : "local");
-    persist(envelopeOf(cloud.session, drafts, slot ? drafts[slot] ?? currentAnswer(cloud.session)?.text ?? "" : "", nextBinding, autoSave, null), persistOwner(nextBinding));
+    persist(envelopeOf(cloud.session, drafts, slot ? drafts[slot] ?? currentAnswer(cloud.session)?.text ?? "" : "", nextBinding, autoSave, null), persistOwner());
   };
   const saveAsNewAttempt = () => {
     const owner = persistOwner();
@@ -282,7 +281,7 @@ export function App() {
     setPendingSave(null);
     lastPushed.current = null;
     setSyncState("local");
-    persist(next, null);
+    persist(next, persistOwner());
   };
   const unsyncedAccountWork = () => Boolean(
     binding && userId && binding.ownerId === userId

@@ -16,10 +16,11 @@ jobs:
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: true
+          python-version: "3.12.13"
       - run: npm ci
       - run: sudo apt-get update
       - run: sudo apt-get install -y ffmpeg
-      - run: uv sync --project tools/experiment --frozen --python 3.12
+      - run: uv sync --project tools/experiment --frozen --python 3.12.13
       - run: npm run experiment:test
       - run: npm run typecheck
       - run: npm test
