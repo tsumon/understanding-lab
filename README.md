@@ -52,6 +52,7 @@ npm run preview:offline
 | `npm run eval:run` | 默认拒绝；需 `EVAL_RUN=true` 与预算，且另有授权才打真实接口 |
 | `.github/workflows/ci.yml` | 私有仓库 CI：typecheck、单元、数值、离线构建、e2e；不调用付费 API |
 | `npm run db:migrate` | 显式迁移 SQLite，先阅读部署说明并填写本地 `.env` |
+| `npm run db:backup` | `backup <源> <目标>` 或 `restore <备份> <目标>`，见 [backup.md](docs/backup.md) |
 | `npm run server` | 启动已配置、已迁移的同源账号服务，不是完整云端教学产品 |
 
 ## 数据与 AI 边界

@@ -72,6 +72,33 @@ export function checkAcceptanceFreeze(acceptance: EvaluationCase[], expectedHash
 
 export type OutputCheck = { ok: boolean; errors: string[] };
 
+export function fixtureOutput(item: EvaluationCase): TutorOutput {
+  const concepts = item.requiredConcepts.join("、");
+  return {
+    kind: item.expectedKinds[0],
+    claim: `与「${concepts}」有关的判断`,
+    reason: `需要谈到 ${concepts}`,
+    nextAction: "ask",
+    question: `请说明${item.requiredConcepts[0] ?? "依据"}`,
+    quotes: [], sources: [], metrics: [],
+  };
+}
+
+export function runFixtureEvaluation(cases: EvaluationCase[], limit: number) {
+  return cases.slice(0, limit).map((item) => {
+    const output = fixtureOutput(item);
+    return {
+      id: item.id,
+      split: item.split,
+      inputHash: sha256(canonicalJson(item.input)),
+      model: "fixture-v1",
+      promptVersion: "fixture",
+      output,
+      check: checkTutorOutput(item, output),
+    };
+  });
+}
+
 export function checkTutorOutput(item: EvaluationCase, output: TutorOutput): OutputCheck {
   const errors: string[] = [];
   if (!item.expectedKinds.includes(output.kind)) errors.push("unexpected-kind");
@@ -127,8 +154,26 @@ async function main(): Promise<void> {
       console.error(JSON.stringify({ event: "eval-run-disabled", reason: "EVAL_BUDGET must be a positive integer" }));
       process.exit(2);
     }
-    console.error(JSON.stringify({ event: "eval-run-not-authorized", reason: "real provider eval needs a separate operator grant" }));
-    process.exit(2);
+    const provider = process.env.EVAL_PROVIDER ?? "";
+    if (provider !== "fixture") {
+      console.error(JSON.stringify({ event: "eval-run-not-authorized", reason: "real provider eval needs EVAL_PROVIDER=fixture or a separate paid-provider grant" }));
+      process.exit(2);
+    }
+    const { dev, acceptance } = loadCommittedCases();
+    const split = process.env.EVAL_SPLIT === "acceptance" ? acceptance : process.env.EVAL_SPLIT === "dev" ? dev : [...dev, ...acceptance];
+    const rows = runFixtureEvaluation(split, budget);
+    const failed = rows.filter((row) => !row.check.ok).length;
+    const outDir = process.env.EVAL_RUN_DIR || join(ROOT, "../reviews/runs");
+    mkdirSync(outDir, { recursive: true });
+    const file = join(outDir, `fixture-${new Date().toISOString().replaceAll(":", "")}.json`);
+    writeFileSync(file, `${JSON.stringify({
+      provider: "fixture", model: "fixture-v1", promptVersion: "fixture",
+      note: "Deterministic fixture, not a paid model and not human semantic review.",
+      startedAt: new Date().toISOString(), budget, split: process.env.EVAL_SPLIT ?? "all",
+      passed: rows.length - failed, failed, rows,
+    }, null, 2)}\n`);
+    console.log(JSON.stringify({ event: "eval-run-complete", provider: "fixture", file, passed: rows.length - failed, failed }));
+    process.exit(failed === 0 ? 0 : 1);
   }
   console.error(JSON.stringify({ event: "unknown-command" }));
   process.exit(2);

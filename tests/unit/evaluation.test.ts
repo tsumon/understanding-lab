@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { checkAcceptanceFreeze, checkDataset, checkTutorOutput, loadCommittedCases, sha256, canonicalJson } from "../../tools/evaluate";
+import { checkAcceptanceFreeze, checkDataset, checkTutorOutput, loadCommittedCases, runFixtureEvaluation, sha256, canonicalJson } from "../../tools/evaluate";
 import { acceptanceCases, devCases, materialize, type EvaluationCase } from "../../tools/eval-cases";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -77,6 +77,12 @@ test("committed JSON matches in-memory cases and the acceptance freeze hash", ()
   expect(sha256(canonicalJson(committed.acceptance))).toBe(lock);
 });
 
+test("fixture eval scores all committed cases without calling a network provider", () => {
+  const rows = runFixtureEvaluation([...devCases, ...acceptanceCases], 42);
+  expect(rows).toHaveLength(42);
+  expect(rows.every((row) => row.check.ok && row.model === "fixture-v1")).toBe(true);
+});
+
 test("eval:run refuses to call a provider without an explicit grant", () => {
   const result = spawnSync(process.execPath, ["--import", "tsx", "tools/evaluate.ts", "run"], {
     cwd: join(import.meta.dirname, "../.."),
@@ -85,4 +91,22 @@ test("eval:run refuses to call a provider without an explicit grant", () => {
   });
   expect(result.status).toBe(2);
   expect(result.stderr).toMatch(/eval-run-disabled/);
+});
+
+test("eval:run fixture writes a local report when granted", () => {
+  const dir = join(import.meta.dirname, "../../tmp-eval-run");
+  const result = spawnSync(process.execPath, ["--import", "tsx", "tools/evaluate.ts", "run"], {
+    cwd: join(import.meta.dirname, "../.."),
+    env: {
+      ...process.env,
+      EVAL_RUN: "true",
+      EVAL_BUDGET: "3",
+      EVAL_PROVIDER: "fixture",
+      EVAL_SPLIT: "dev",
+      EVAL_RUN_DIR: dir,
+    },
+    encoding: "utf8",
+  });
+  expect(result.status).toBe(0);
+  expect(result.stdout).toMatch(/eval-run-complete/);
 });

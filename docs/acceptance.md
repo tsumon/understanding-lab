@@ -22,7 +22,9 @@
 | 真机麦克风 / 完整无障碍 | 真 iPhone / Android | Playwright 模拟不是真机 | not-run |
 | 双浏览器 live 同步 | `tests/e2e/live-sync.spec.ts` | 测试身份注入；Desktop/Android 通过。不是真 GitHub OAuth | pass |
 | 键盘跳转与 skip link | `tests/e2e/a11y.spec.ts` | 桌面键盘路径；不是真机无障碍审核 | pass |
-| 公共部署备份与恢复演练 | deployment.md | 无已披露的备份保留策略；阻止公共部署 | blocked |
+| SQLite 在线备份工具 | `tests/unit/backup.test.ts`、`docs/backup.md` | 临时库 backup→restore 通过 | pass |
+| 公共部署备份与恢复演练 | 真实 `DB_PATH` 演练记录 | 工具有了，生产演练未做 | blocked |
+| fixture 评测管线 | `EVAL_PROVIDER=fixture` | 确定性夹具，不是付费模型，也不是人类语义审阅 | pass |
 | CI | `.github/workflows/ci.yml` | 工作流已提交；本机未代替 GitHub 跑该 workflow | not-run |
 
 没有实际备份策略时不得公共部署，也不虚构「7 天删除」。远程删除不会立刻擦掉其他设备上的离线副本。应用不承诺端到端加密。
