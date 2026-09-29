@@ -1,27 +1,6 @@
 import { expect, test, type Browser } from "@playwright/test";
-import { spawn } from "node:child_process";
-import { once } from "node:events";
 import { openSignedPage } from "./helpers/signed-page";
-
-async function spawnLiveApp() {
-  const child = spawn(process.execPath, ["--import", "tsx", "tests/e2e/helpers/live-server.ts"], {
-    cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"],
-  });
-  const line = await new Promise<string>((resolve, reject) => {
-    child.stdout.setEncoding("utf8");
-    child.stdout.once("data", (chunk: string) => resolve(chunk.trim()));
-    child.once("error", reject);
-    child.once("exit", (code) => reject(new Error(`live-server exited ${code}`)));
-  });
-  const origin = (JSON.parse(line) as { origin: string }).origin;
-  return {
-    origin,
-    close: async () => {
-      child.kill("SIGTERM");
-      await once(child, "exit").catch(() => undefined);
-    },
-  };
-}
+import { spawnLiveApp } from "./helpers/spawn-live";
 
 test("two signed-in contexts isolate records and a second device can restore the latest save", async ({ browser }: { browser: Browser }) => {
   const live = await spawnLiveApp();

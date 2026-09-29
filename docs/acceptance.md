@@ -31,6 +31,8 @@
 | 远程删除后保存 | `tests/e2e/live-sync.spec.ts` | 410 后本机草稿仍在，不复活旧编号 | pass |
 | 载入云端版本 | `tests/e2e/live-sync.spec.ts` | 冲突后编辑器换成云端稿 | pass |
 | UTC 第 31 次教学 | `tests/e2e/tutor-quota.spec.ts` | 429 quota-exhausted，不是学习对错 | pass |
+| 缺同意 / 第 5 路在途 | `tests/e2e/tutor-quota.spec.ts` | 400 consent-required；五路并发一条 503 | pass |
+| UTC 第 11 次转写 | `tests/e2e/tutor-quota.spec.ts` | 429；无同意为 400 | pass |
 | CI | `.github/workflows/ci.yml` | 工作流已提交；本机未代替 GitHub 跑该 workflow | not-run |
 
 没有实际备份策略时不得公共部署，也不虚构「7 天删除」。远程删除不会立刻擦掉其他设备上的离线副本。应用不承诺端到端加密。

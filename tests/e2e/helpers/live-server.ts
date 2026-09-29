@@ -1,4 +1,5 @@
 import { createApp } from "../../../src/server/app";
+import { encodeWav } from "../../../src/server/audio";
 import { QuotaLedger } from "../../../src/server/quota";
 import { SessionRepository } from "../../../src/server/sessions";
 import Database from "better-sqlite3";
@@ -33,8 +34,16 @@ export async function startLiveApp(): Promise<{ origin: string; close(): Promise
       const id = userFromCookie(headers.cookie);
       return id ? { id } : null;
     },
-    tutorProvider: { model: "disabled", generate: async () => { throw new Error("unavailable"); } },
-    audioProvider: null,
+    tutorProvider: {
+      model: "disabled",
+      generate: async () => {
+        const delay = Number(process.env.LIVE_TUTOR_DELAY_MS ?? "0");
+        if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+        throw new Error("unavailable");
+      },
+    },
+    audioProvider: process.env.LIVE_AUDIO === "1" ? { transcribe: async () => "转写草稿" } : null,
+    normalizeAudio: process.env.LIVE_AUDIO === "1" ? async () => encodeWav(new Uint8Array(32_000)) : undefined,
     clock: () => new Date("2026-09-26T00:00:00Z"),
     publicOrigin: origin,
   });

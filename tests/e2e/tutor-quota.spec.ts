@@ -1,23 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { spawn } from "node:child_process";
-import { once } from "node:events";
 import { newSession } from "../../src/domain/contracts";
-
-async function spawnLiveApp() {
-  const child = spawn(process.execPath, ["--import", "tsx", "tests/e2e/helpers/live-server.ts"], {
-    cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"],
-  });
-  const line = await new Promise<string>((resolve, reject) => {
-    child.stdout.setEncoding("utf8");
-    child.stdout.once("data", (chunk: string) => resolve(chunk.trim()));
-    child.once("error", reject);
-    child.once("exit", (code) => reject(new Error(`live-server exited ${code}`)));
-  });
-  return {
-    origin: (JSON.parse(line) as { origin: string }).origin,
-    close: async () => { child.kill("SIGTERM"); await once(child, "exit").catch(() => undefined); },
-  };
-}
+import { spawnLiveApp } from "./helpers/spawn-live";
 
 test("the 31st tutor call in one UTC day is quota-exhausted and not a learning error", async ({ request, browserName, isMobile }) => {
   test.skip(browserName !== "chromium" || Boolean(isMobile), "quota is enforced on the server; one desktop Chromium pass is enough");
@@ -34,6 +17,54 @@ test("the 31st tutor call in one UTC day is quota-exhausted and not a learning e
       expect(response.status(), `call ${index}`).toBe(200);
     }
     const blocked = await post("quota-30");
+    expect(blocked.status()).toBe(429);
+    expect(await blocked.json()).toEqual({ error: "quota-exhausted" });
+  } finally {
+    await live.close();
+  }
+});
+
+test("missing sendConsent is 400 and five overlapping tutor calls yield one busy response", async ({ request, browserName, isMobile }) => {
+  test.skip(browserName !== "chromium" || Boolean(isMobile), "limit checks are server-side");
+  const live = await spawnLiveApp({ LIVE_TUTOR_DELAY_MS: "400" });
+  try {
+    const session = newSession("limits-ephemeral");
+    const denied = await request.post(`${live.origin}/api/tutor`, {
+      headers: { origin: live.origin, cookie: "ul-test-user=alice", "content-type": "application/json" },
+      data: { requestId: "no-consent", session, includeNotes: false, sendConsent: false },
+    });
+    expect(denied.status()).toBe(400);
+    expect(await denied.json()).toEqual({ error: "consent-required" });
+    const overlapping = await Promise.all(Array.from({ length: 5 }, (_, index) => request.post(`${live.origin}/api/tutor`, {
+      headers: { origin: live.origin, cookie: "ul-test-user=alice", "content-type": "application/json" },
+      data: { requestId: `overlap-${index}`, session: newSession(`limits-${index}`), includeNotes: false, sendConsent: true },
+    })));
+    const statuses = overlapping.map((item) => item.status()).sort();
+    expect(statuses.filter((status) => status === 200)).toHaveLength(4);
+    expect(statuses.filter((status) => status === 503)).toHaveLength(1);
+  } finally {
+    await live.close();
+  }
+});
+
+test("the 11th transcribe in one UTC day is quota-exhausted", async ({ request, browserName, isMobile }) => {
+  test.skip(browserName !== "chromium" || Boolean(isMobile), "transcribe quota is server-side");
+  const live = await spawnLiveApp({ LIVE_AUDIO: "1" });
+  try {
+    const post = (id: string, consent = true) => request.post(`${live.origin}/api/transcribe`, {
+      headers: {
+        origin: live.origin,
+        cookie: "ul-test-user=alice",
+        "X-Request-Id": id,
+        ...(consent ? { "X-Send-Consent": "true" } : {}),
+      },
+      multipart: { audio: { name: "clip.webm", mimeType: "audio/webm", buffer: Buffer.from("webm-bytes") } },
+    });
+    expect((await post("no-consent", false)).status()).toBe(400);
+    for (let index = 0; index < 10; index += 1) {
+      expect((await post(`audio-${index}`)).status(), `call ${index}`).toBe(200);
+    }
+    const blocked = await post("audio-10");
     expect(blocked.status()).toBe(429);
     expect(await blocked.json()).toEqual({ error: "quota-exhausted" });
   } finally {
