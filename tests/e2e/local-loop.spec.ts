@@ -135,7 +135,11 @@ test("fast refresh retains notes, experiment settings, and a draft from an earli
   if (isMobile) await page.getByRole("button", { name: "实验" }).click();
   await expect(page.getByLabel("多项式阶数")).toHaveValue("11");
   if (isMobile) await page.getByRole("button", { name: "讲解" }).click();
-  for (let index = 0; index < 4; index++) await page.getByRole("button", { name: "返回上一步" }).click();
+  for (let index = 0; index < 8; index += 1) {
+    if ((await page.locator(".step-nav [aria-current='step']").textContent())?.includes("初始解释")) break;
+    await page.getByRole("button", { name: "返回上一步" }).click();
+  }
+  await expect(page.locator(".step-nav [aria-current='step']")).toContainText("初始解释");
   await expect(page.getByLabel("我的解释")).toHaveValue("尚未确认的初始草稿");
 });
 

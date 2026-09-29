@@ -176,8 +176,12 @@ export function App() {
     catch (error) { setActionError(error instanceof Error ? error.message : "确认失败"); }
   };
   const navigate = (type: "continue" | "back" | "skip" | "start-experiment") => {
-    try { moveTo(transition(session, { type })); }
-    catch (error) { setActionError(error instanceof Error ? error.message : "无法继续"); }
+    try {
+      const next = transition(session, { type });
+      const slot = slotFor(next);
+      persist(envelopeOf(next, drafts, slot ? drafts[slot] ?? currentAnswer(next)?.text ?? "" : ""));
+      moveTo(next);
+    } catch (error) { setActionError(error instanceof Error ? error.message : "无法继续"); }
   };
   const record = () => {
     if (session.step !== "experiment") { setActionError("进入实验步骤后才能记录观察。"); return; }
