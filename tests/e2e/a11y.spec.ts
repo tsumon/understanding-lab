@@ -13,13 +13,33 @@ test("skip link and keyboard can start the local lesson", async ({ page, isMobil
   await expect(page.getByRole("navigation", { name: "学习进度" })).toBeVisible();
 });
 
+async function seriousViolations(page: import("@playwright/test").Page) {
+  const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
+  return result.violations.filter((item) => item.impact === "critical" || item.impact === "serious");
+}
+
 test("axe reports no critical or serious issues on home and the started lesson", async ({ page }) => {
-  const scan = async () => {
-    const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
-    return result.violations.filter((item) => item.impact === "critical" || item.impact === "serious");
-  };
   await page.goto("/");
-  expect(await scan(), "home").toEqual([]);
+  expect(await seriousViolations(page), "home").toEqual([]);
   await page.getByRole("button", { name: "开始学习" }).click();
-  expect(await scan(), "started lesson").toEqual([]);
+  expect(await seriousViolations(page), "started lesson").toEqual([]);
+});
+
+test("axe reports no critical or serious issues on experiment and summary", async ({ page, isMobile }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "开始学习" }).click();
+  await page.getByRole("button", { name: "先做实验" }).click();
+  if (isMobile) await page.getByRole("button", { name: "实验", exact: true }).click();
+  expect(await seriousViolations(page), "experiment").toEqual([]);
+  for (let i = 0; i < 8; i += 1) {
+    if (isMobile) {
+      const tab = page.getByRole("button", { name: "讲解" });
+      if (await tab.isVisible()) await tab.click();
+    }
+    const skip = page.getByRole("button", { name: "跳过，标记未验证" });
+    if (await skip.isVisible()) await skip.click();
+    else break;
+  }
+  await expect(page.getByRole("heading", { name: "本次小结" })).toBeVisible();
+  expect(await seriousViolations(page), "summary").toEqual([]);
 });

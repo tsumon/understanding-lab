@@ -26,5 +26,7 @@ jobs:
       - run: npm run build:offline
       - name: Eval check must pass after operator-authorized case review
         run: npm run eval:check
+      - name: Fixture eval (deterministic, not a paid model)
+        run: EVAL_RUN=true EVAL_PROVIDER=fixture EVAL_BUDGET=42 EVAL_RUN_DIR=tmp-eval-run npm run eval:run
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run test:e2e

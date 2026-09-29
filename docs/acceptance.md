@@ -27,6 +27,7 @@
 | SQLite 在线备份工具 | `tests/unit/backup.test.ts`、`docs/backup.md` | 临时库 backup→restore 通过 | pass |
 | 公共部署备份与恢复演练 | 真实 `DB_PATH` 演练记录 | 工具有了，生产演练未做 | blocked |
 | fixture 评测管线 | `EVAL_PROVIDER=fixture` | 确定性夹具，不是付费模型，也不是人类语义审阅 | pass |
+| 同账号修订冲突 | `tests/e2e/live-sync.spec.ts` | 保留本机稿并可载入云端版本 | pass |
 | CI | `.github/workflows/ci.yml` | 工作流已提交；本机未代替 GitHub 跑该 workflow | not-run |
 
 没有实际备份策略时不得公共部署，也不虚构「7 天删除」。远程删除不会立刻擦掉其他设备上的离线副本。应用不承诺端到端加密。
