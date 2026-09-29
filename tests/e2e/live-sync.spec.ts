@@ -23,8 +23,7 @@ async function spawnLiveApp() {
   };
 }
 
-test("two signed-in contexts isolate records and a second device can restore the latest save", async ({ browser, browserName }: { browser: Browser; browserName: string }) => {
-  test.skip(browserName === "webkit", "WebKit fetch cookies against the injected test origin are not a GitHub OAuth stand-in");
+test("two signed-in contexts isolate records and a second device can restore the latest save", async ({ browser }: { browser: Browser }) => {
   const live = await spawnLiveApp();
   try {
     const alice = await openSignedPage(browser, live.origin, "alice");
@@ -33,7 +32,7 @@ test("two signed-in contexts isolate records and a second device can restore the
     await alice.page.getByRole("button", { name: "开始学习" }).click();
     await alice.page.getByLabel("我的笔记（最多 8000 字）").fill("爱丽丝的跨设备笔记");
     await alice.page.getByRole("button", { name: "保存到账号" }).click();
-    await expect(alice.page.getByText("已同步到账号")).toBeVisible();
+    await expect(alice.page.getByText("已同步到账号")).toBeVisible({ timeout: 15000 });
 
     const bob = await openSignedPage(browser, live.origin, "bob");
     await bob.page.getByRole("button", { name: "登录" }).click();

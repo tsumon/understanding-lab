@@ -408,19 +408,23 @@ export function App() {
     <a className="skip-link" href="#main-content">跳到主要内容</a>
     <main id="main-content" className="app-shell" tabIndex={-1}>
     <header className="page-header">
-      <p className="eyebrow">理解实验室 · 过拟合</p>
-      <h1>为什么训练误差低，不代表效果好</h1>
+      <div className="page-header-top">
+        <div>
+          <p className="eyebrow">理解实验室 · 过拟合</p>
+          <h1>为什么训练误差低，不代表效果好</h1>
+        </div>
+        <div className="account-bar">
+          {userId
+            ? <>
+                <p className="hint">当前账号 {userId}</p>
+                <button type="button" className="secondary" onClick={() => void handleSignOut()}>退出登录</button>
+              </>
+            : <button type="button" className="secondary" onClick={() => void handleLogin()}>登录</button>}
+        </div>
+      </div>
       <p>阅读证据、写下解释，再用真实数值观察变化。离线引导，不是 AI 评价。</p>
       <OfflineStatus />
       <p className="sync-status" data-state={syncState} aria-live="polite">{syncLabels[syncState]}</p>
-      <div className="account-bar">
-        {userId
-          ? <>
-              <p className="hint">当前账号 {userId}</p>
-              <button type="button" className="secondary" onClick={() => void handleSignOut()}>退出登录</button>
-            </>
-          : <button type="button" className="secondary" onClick={() => void handleLogin()}>登录</button>}
-      </div>
     </header>
 
     {corruptRaw !== null && <section className="card warning-card" role="alert">
@@ -465,7 +469,7 @@ export function App() {
       <button type="button" onClick={begin}>开始学习</button></section>}
 
     {started && <>
-      <nav className="step-nav" aria-label="学习进度"><ol>{STEPS.map((step, index) => <li key={step} aria-current={session.step === step ? "step" : undefined}>{index + 1}. {stepLabels[step]}</li>)}</ol></nav>
+      <nav className="step-nav" aria-label="学习进度" tabIndex={0}><ol>{STEPS.map((step, index) => <li key={step} aria-current={session.step === step ? "step" : undefined}>{index + 1}. {stepLabels[step]}</li>)}</ol></nav>
       <div className="mobile-tabs" role="group" aria-label="工作区视图">
         <button type="button" aria-pressed={view === "material"} onClick={() => setView("material")}>材料</button>
         <button type="button" aria-pressed={view === "experiment"} onClick={() => setView("experiment")}>实验</button>

@@ -1,8 +1,23 @@
 import type { Browser } from "@playwright/test";
 
 export async function openSignedPage(browser: Browser, origin: string, userId: string) {
-  const context = await browser.newContext();
-  await context.addCookies([{ name: "ul-test-user", value: userId, url: origin }]);
+  const context = await browser.newContext({ serviceWorkers: "block" });
+  const host = new URL(origin).hostname;
+  await context.addCookies([{
+    name: "ul-test-user", value: userId, domain: host, path: "/",
+    httpOnly: false, secure: false, sameSite: "Lax",
+  }]);
+  await context.setExtraHTTPHeaders({ Cookie: `ul-test-user=${userId}` });
+  await context.route("**/api/sessions**", async (route) => {
+    const response = await route.fetch({
+      headers: {
+        ...route.request().headers(),
+        origin,
+        cookie: `ul-test-user=${userId}`,
+      },
+    });
+    await route.fulfill({ response });
+  });
   await context.route("**/api/auth/**", async (route) => {
     const url = route.request().url();
     if (url.includes("get-session")) {
@@ -22,5 +37,6 @@ export async function openSignedPage(browser: Browser, origin: string, userId: s
   });
   const page = await context.newPage();
   await page.goto(origin);
+  await page.evaluate((id) => { document.cookie = `ul-test-user=${id}; path=/`; }, userId);
   return { context, page };
 }
