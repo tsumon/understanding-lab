@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dist = path.join(root, "dist");
-const allowedExtensions = new Set([".html", ".js", ".css", ".json", ".svg", ".png", ".webp", ".ico"]);
+const allowedExtensions = new Set([".html", ".js", ".css", ".json", ".svg", ".png", ".webp", ".ico", ".webmanifest"]);
 
 async function filesUnder(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });

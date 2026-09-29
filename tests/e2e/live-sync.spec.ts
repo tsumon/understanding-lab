@@ -88,6 +88,33 @@ test("two devices of the same account keep both copies on a revision conflict", 
   }
 });
 
+test("loading the cloud copy replaces the local editor after a conflict", async ({ browser }: { browser: Browser }) => {
+  const live = await spawnLiveApp();
+  try {
+    const deviceA = await openSignedPage(browser, live.origin, "alice");
+    await deviceA.page.getByRole("button", { name: "登录" }).click();
+    await deviceA.page.getByRole("button", { name: "开始学习" }).click();
+    await deviceA.page.getByLabel("我的笔记（最多 8000 字）").fill("云端稿");
+    await deviceA.page.getByRole("button", { name: "保存到账号" }).click();
+    await expect(deviceA.page.getByText("已同步到账号")).toBeVisible({ timeout: 15000 });
+
+    const deviceB = await openSignedPage(browser, live.origin, "alice");
+    await deviceB.page.getByRole("button", { name: "登录" }).click();
+    await deviceA.page.getByLabel("我的笔记（最多 8000 字）").fill("云端稿更新");
+    await deviceA.page.getByRole("button", { name: "保存到账号" }).click();
+    await expect(deviceA.page.getByText("已同步到账号")).toBeVisible({ timeout: 15000 });
+    await deviceB.page.getByLabel("我的笔记（最多 8000 字）").fill("本机冲突稿");
+    await deviceB.page.getByRole("button", { name: "保存到账号" }).click();
+    await expect(deviceB.page.getByRole("heading", { name: "与账号中的版本冲突" })).toBeVisible({ timeout: 15000 });
+    await deviceB.page.getByRole("button", { name: "载入账号版本" }).click();
+    await expect(deviceB.page.getByLabel("我的笔记（最多 8000 字）")).toHaveValue("云端稿更新");
+    await deviceB.context.close();
+    await deviceA.context.close();
+  } finally {
+    await live.close();
+  }
+});
+
 test("saving after a remote delete keeps the local draft and refuses to revive the old id", async ({ browser }: { browser: Browser }) => {
   const live = await spawnLiveApp();
   try {
