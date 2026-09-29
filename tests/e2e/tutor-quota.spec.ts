@@ -71,3 +71,53 @@ test("the 11th transcribe in one UTC day is quota-exhausted", async ({ request, 
     await live.close();
   }
 });
+
+test("unauthenticated, foreign origin, and reused request ids are rejected before a new model call", async ({ request, browserName, isMobile }) => {
+  test.skip(browserName !== "chromium" || Boolean(isMobile), "auth and origin checks are server-side");
+  const live = await spawnLiveApp();
+  try {
+    const session = newSession("gate-ephemeral");
+    const authed = { origin: live.origin, cookie: "ul-test-user=alice", "content-type": "application/json" };
+    expect((await request.post(`${live.origin}/api/tutor`, {
+      headers: { origin: live.origin, "content-type": "application/json" },
+      data: { requestId: "anon", session, includeNotes: false, sendConsent: true },
+    })).status()).toBe(401);
+    expect((await request.post(`${live.origin}/api/tutor`, {
+      headers: { origin: "http://evil.example", cookie: "ul-test-user=alice", "content-type": "application/json" },
+      data: { requestId: "csrf", session, includeNotes: false, sendConsent: true },
+    })).status()).toBe(403);
+    const first = await request.post(`${live.origin}/api/tutor`, {
+      headers: authed, data: { requestId: "same-key", session, includeNotes: false, sendConsent: true },
+    });
+    expect(first.status()).toBe(200);
+    const replay = await request.post(`${live.origin}/api/tutor`, {
+      headers: authed, data: { requestId: "same-key", session, includeNotes: false, sendConsent: true },
+    });
+    expect(replay.status()).toBe(409);
+    expect(await replay.json()).toEqual({ error: "already-used" });
+    expect((await request.get(`${live.origin}/api/me`, { headers: authed })).status()).toBe(200);
+  } finally {
+    await live.close();
+  }
+});
+
+test("a third overlapping transcribe is busy and does not look like a learning error", async ({ request, browserName, isMobile }) => {
+  test.skip(browserName !== "chromium" || Boolean(isMobile), "decode cap is server-side");
+  const live = await spawnLiveApp({ LIVE_AUDIO: "1", LIVE_AUDIO_DELAY_MS: "400" });
+  try {
+    const overlapping = await Promise.all(Array.from({ length: 3 }, (_, index) => request.post(`${live.origin}/api/transcribe`, {
+      headers: {
+        origin: live.origin,
+        cookie: "ul-test-user=alice",
+        "X-Request-Id": `decode-${index}`,
+        "X-Send-Consent": "true",
+      },
+      multipart: { audio: { name: "clip.webm", mimeType: "audio/webm", buffer: Buffer.from("webm-bytes") } },
+    })));
+    const statuses = overlapping.map((item) => item.status()).sort();
+    expect(statuses.filter((status) => status === 200)).toHaveLength(2);
+    expect(statuses.filter((status) => status === 503)).toHaveLength(1);
+  } finally {
+    await live.close();
+  }
+});

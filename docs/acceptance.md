@@ -33,6 +33,8 @@
 | UTC 第 31 次教学 | `tests/e2e/tutor-quota.spec.ts` | 429 quota-exhausted，不是学习对错 | pass |
 | 缺同意 / 第 5 路在途 | `tests/e2e/tutor-quota.spec.ts` | 400 consent-required；五路并发一条 503 | pass |
 | UTC 第 11 次转写 | `tests/e2e/tutor-quota.spec.ts` | 429；无同意为 400 | pass |
+| 未登录 / 跨源 / 重复 requestId | `tests/e2e/tutor-quota.spec.ts` | 401 / 403 / 409 already-used | pass |
+| 第三路转写解码 | `tests/e2e/tutor-quota.spec.ts` | 两路成功，一路 503 | pass |
 | CI | `.github/workflows/ci.yml` | 工作流已提交；本机未代替 GitHub 跑该 workflow | not-run |
 
 没有实际备份策略时不得公共部署，也不虚构「7 天删除」。远程删除不会立刻擦掉其他设备上的离线副本。应用不承诺端到端加密。

@@ -43,7 +43,13 @@ export async function startLiveApp(): Promise<{ origin: string; close(): Promise
       },
     },
     audioProvider: process.env.LIVE_AUDIO === "1" ? { transcribe: async () => "转写草稿" } : null,
-    normalizeAudio: process.env.LIVE_AUDIO === "1" ? async () => encodeWav(new Uint8Array(32_000)) : undefined,
+    normalizeAudio: process.env.LIVE_AUDIO === "1"
+      ? async () => {
+        const delay = Number(process.env.LIVE_AUDIO_DELAY_MS ?? "0");
+        if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+        return encodeWav(new Uint8Array(32_000));
+      }
+      : undefined,
     clock: () => new Date("2026-09-26T00:00:00Z"),
     publicOrigin: origin,
   });
