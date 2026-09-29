@@ -15,6 +15,4 @@ test("login, save, and send-to-AI stay independent and never hit tutor on the st
   expect(tutorRequests).toEqual([]);
 });
 
-test("two-context live sync needs POST /api/tutor in this worktree", async () => {
-  test.skip(true, "Server agent owns POST /api/tutor, quotas, and 002_usage.sql. Client isolation is covered by tests/unit/app-account.test.tsx and tests/unit/local-store.test.ts with mocked fetch.");
-});
+

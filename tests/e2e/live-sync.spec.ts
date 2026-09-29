@@ -75,10 +75,41 @@ test("two devices of the same account keep both copies on a revision conflict", 
     await deviceB.page.getByRole("button", { name: "保存到账号" }).click();
     await expect(deviceB.page.getByRole("heading", { name: "与账号中的版本冲突" })).toBeVisible({ timeout: 15000 });
     await expect(deviceB.page.getByLabel("我的笔记（最多 8000 字）")).toHaveValue("设备乙本机稿");
-    await deviceB.page.getByRole("button", { name: "载入账号版本" }).click();
-    await expect(deviceB.page.getByLabel("我的笔记（最多 8000 字）")).toHaveValue("设备甲已更新");
+    await deviceB.page.getByRole("button", { name: "另存为新尝试" }).click();
+    await expect(deviceB.page.getByText("仅本机")).toBeVisible();
+    await expect(deviceB.page.getByLabel("我的笔记（最多 8000 字）")).toHaveValue("设备乙本机稿");
+    await deviceB.page.getByRole("button", { name: "保存到账号" }).click();
+    await expect(deviceB.page.getByText("已同步到账号")).toBeVisible({ timeout: 15000 });
+    await expect(deviceA.page.getByLabel("我的笔记（最多 8000 字）")).toHaveValue("设备甲已更新");
     await deviceB.context.close();
     await deviceA.context.close();
+  } finally {
+    await live.close();
+  }
+});
+
+test("saving after a remote delete keeps the local draft and refuses to revive the old id", async ({ browser }: { browser: Browser }) => {
+  const live = await spawnLiveApp();
+  try {
+    const alice = await openSignedPage(browser, live.origin, "alice");
+    await alice.page.getByRole("button", { name: "登录" }).click();
+    await alice.page.getByRole("button", { name: "开始学习" }).click();
+    await alice.page.getByLabel("我的笔记（最多 8000 字）").fill("删除后仍应留在本机");
+    await alice.page.getByRole("button", { name: "保存到账号" }).click();
+    await expect(alice.page.getByText("已同步到账号")).toBeVisible({ timeout: 15000 });
+    const sessionId = await alice.page.evaluate(() => {
+      const raw = localStorage.getItem("understanding-lab:v1:owner:alice:current");
+      return raw ? (JSON.parse(raw) as { binding?: { id?: string } }).binding?.id : null;
+    });
+    expect(sessionId).toBeTruthy();
+    const deleted = await alice.context.request.delete(`${live.origin}/api/sessions/${sessionId}`, {
+      headers: { origin: live.origin, cookie: "ul-test-user=alice" },
+    });
+    expect(deleted.status()).toBe(204);
+    await alice.page.getByRole("button", { name: "保存到账号" }).click();
+    await expect(alice.page.getByRole("heading", { name: "账号记录已删除" })).toBeVisible({ timeout: 15000 });
+    await expect(alice.page.getByLabel("我的笔记（最多 8000 字）")).toHaveValue("删除后仍应留在本机");
+    await alice.context.close();
   } finally {
     await live.close();
   }
