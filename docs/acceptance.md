@@ -20,7 +20,8 @@
 | 真实 GitHub OAuth | 部署者应用 + 回调 | 仅假凭据注入 | not-run |
 | 真实模型兼容性 / 数据保留政策 | 部署者启用后的 smoke | 仅 mock HTTP | not-run |
 | 真机麦克风 / 完整无障碍 | 真 iPhone / Android | Playwright 模拟不是真机 | not-run |
-| 双浏览器 live 同步 | 两个已登录上下文 | 未跑真实 OAuth | not-run |
+| 双浏览器 live 同步 | `tests/e2e/live-sync.spec.ts` | 测试身份注入；Desktop/Android 通过。不是真 GitHub OAuth | pass |
+| 键盘跳转与 skip link | `tests/e2e/a11y.spec.ts` | 桌面键盘路径；不是真机无障碍审核 | pass |
 | 公共部署备份与恢复演练 | deployment.md | 无已披露的备份保留策略；阻止公共部署 | blocked |
 | CI | `.github/workflows/ci.yml` | 工作流已提交；本机未代替 GitHub 跑该 workflow | not-run |
 

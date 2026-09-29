@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test, vi } from "vitest";
 import { newSession } from "../../src/domain/contracts";
-import { forkAttempt, keepPending, prepareSave, synchronize } from "../../src/client/sync";
+import { envelopeFromCloud, forkAttempt, keepPending, listCloudSessions, prepareSave, synchronize } from "../../src/client/sync";
 import type { DraftEnvelope } from "../../src/client/local-store";
 
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -77,6 +77,21 @@ test("bound retries keep the cloud id and only mint a new key when the body chan
   expect(first.cloud).toEqual({ id: "s1", serverRevision: 2 });
   expect(first.pending.key).toBe("k-old");
   expect(prepareSave(newSession("s1"), binding, first.pending, () => keys.shift()!).pending.key).toBe("k-old");
+});
+
+test("listCloudSessions returns only this account's saved rows", async () => {
+  const saved = { session: newSession("s1"), serverRevision: 2 };
+  const listed = await listCloudSessions(async () => new Response(JSON.stringify({ sessions: [saved] }), { status: 200 }));
+  expect(listed).toEqual([saved]);
+  await expect(listCloudSessions(async () => new Response("", { status: 401 }))).resolves.toEqual([]);
+});
+
+test("envelopeFromCloud binds the owner without uploading anonymous drafts", () => {
+  const saved = { session: { ...newSession("s9"), notes: "云端笔记" }, serverRevision: 3 };
+  const restored = envelopeFromCloud(saved, "alice", envelope().exploration);
+  expect(restored.session.id).toBe("s9");
+  expect(restored.binding).toEqual({ ownerId: "alice", id: "s9", serverRevision: 3 });
+  expect(restored.autoSave).toBe(false);
 });
 
 test("forking assigns a new id and clears account binding without last-write-wins", () => {

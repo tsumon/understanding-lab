@@ -4,7 +4,7 @@ import { currentAnswer, feedbackViews, questionFor, transition } from "../domain
 import { parsePack, type ExperimentPack } from "../experiment/catalog";
 import { transitionExperiment, type Exploration } from "../experiment/exploration";
 import { clearConflict, clearOwnerCache, deleteDraft, rawDraftForExport, readConflict, readEnvelope, writeConflict, writeEnvelope, type CloudBinding, type ConflictCopy, type DraftEnvelope, type DraftSlot, type PendingSave } from "./local-store";
-import { forkAttempt, keepPending, prepareSave, synchronize } from "./sync";
+import { envelopeFromCloud, forkAttempt, keepPending, listCloudSessions, prepareSave, synchronize } from "./sync";
 import { getSignedInUser, signInWithGitHub, signOut } from "./auth-client";
 import { Recorder } from "./Recorder";
 import { postTutor, TutorRequestGuard } from "./ai-client";
@@ -123,11 +123,19 @@ export function App() {
     setCorruptRaw(null);
   };
 
-  const identifyUser = (user: { id: string }) => {
+  const identifyUser = async (user: { id: string }) => {
     setUserId(user.id);
     lastUser.current = user.id;
     const ownerDraft = readEnvelope(draftId, user.id);
-    if (ownerDraft) loadDraft(ownerDraft, readConflict(draftId, user.id), user.id);
+    if (ownerDraft) {
+      loadDraft(ownerDraft, readConflict(draftId, user.id), user.id);
+      return;
+    }
+    const latest = (await listCloudSessions())[0];
+    if (!latest) return;
+    const envelope = envelopeFromCloud(latest, user.id, initialExploration);
+    writeEnvelope(draftId, envelope, user.id);
+    loadDraft(envelope, null, user.id);
   };
 
   useEffect(() => {
@@ -319,7 +327,7 @@ export function App() {
   const handleLogin = async () => {
     setActionError(null);
     const user = await getSignedInUser().catch(() => null);
-    if (user) { identifyUser(user); return; }
+    if (user) { await identifyUser(user); return; }
     try { await signInWithGitHub(); }
     catch { setActionError("登录暂时不可用。本机草稿未上传。"); }
   };
@@ -396,7 +404,9 @@ export function App() {
     catch (error) { setActionError(error instanceof Error ? error.message : "无法记录异议"); }
   };
 
-  return <main className="app-shell">
+  return <>
+    <a className="skip-link" href="#main-content">跳到主要内容</a>
+    <main id="main-content" className="app-shell" tabIndex={-1}>
     <header className="page-header">
       <p className="eyebrow">理解实验室 · 过拟合</p>
       <h1>为什么训练误差低，不代表效果好</h1>
@@ -534,5 +544,6 @@ export function App() {
       </section>
       {!saveError && <button type="button" className="export-link" onClick={exportCurrent}>导出当前尝试</button>}
     </>}
-  </main>;
+  </main>
+  </>;
 }

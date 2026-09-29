@@ -57,7 +57,8 @@ test("login identifies the user id and does not upload drafts or call tutor", as
   fireEvent.click(login);
   await screen.findByText("当前账号 alice");
   expect(auth.signInWithGitHub).not.toHaveBeenCalled();
-  expect(fetch.mock.calls.every((call) => !String(call[0]).includes("/api/sessions") && !String(call[0]).includes("/api/tutor"))).toBe(true);
+  expect(fetch.mock.calls.some((call) => String(call[0]).includes("/api/tutor"))).toBe(false);
+  expect(fetch.mock.calls.some((call) => String(call[0]).includes("/api/sessions") && String(call[1]?.method ?? "GET").toUpperCase() === "PUT")).toBe(false);
   expect(screen.queryByText("alice@example.invalid")).toBeNull();
   expect(screen.queryByText(/@/)).toBeNull();
   expect(screen.getByLabelText("我的笔记（最多 8000 字）")).toHaveProperty("value", "匿名笔记");
@@ -110,6 +111,24 @@ test("429 is shown as quota, not as a learning-step judgment", async () => {
   await screen.findByText(/今日教学次数已用完/);
   expect(screen.queryByText("服务端模型给出的判断")).toBeNull();
   expect(screen.queryByRole("region", { name: "教学反馈" })).toBeNull();
+});
+
+test("login hydrates the latest cloud attempt when this device has no owner draft", async () => {
+  const cloudSession = { ...newSession("from-cloud"), notes: "另一台设备上的笔记" };
+  fetchStub((url) => {
+    if (url.endsWith("/api/sessions")) {
+      return new Response(JSON.stringify({ sessions: [{ session: cloudSession, serverRevision: 4 }] }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    }
+    return new Response("", { status: 404 });
+  });
+  auth.getSignedInUser.mockResolvedValue({ id: "alice" });
+  const { App } = await import("../../src/client/App");
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "登录" }));
+  await waitFor(() => expect((screen.getByLabelText("我的笔记（最多 8000 字）") as HTMLTextAreaElement).value).toBe("另一台设备上的笔记"));
+  expect(screen.getByText("当前账号 alice")).toBeTruthy();
 });
 
 test("sign-out clears the owner cache and pending queue but keeps the anonymous draft", async () => {

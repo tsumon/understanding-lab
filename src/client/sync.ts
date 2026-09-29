@@ -1,4 +1,6 @@
 import type { LearningSession, SavedSession } from "../domain/contracts";
+import { currentAnswer } from "../domain/session";
+import type { Exploration } from "../experiment/exploration";
 import type { CloudBinding, DraftEnvelope, PendingSave } from "./local-store";
 
 export type CloudRef = { id: string; serverRevision: number };
@@ -53,6 +55,34 @@ export function prepareSave(
 
 export function keepPending(status: SyncOutcome["status"]): boolean {
   return status === "offline";
+}
+
+export async function listCloudSessions(fetchImpl: FetchLike = fetch): Promise<SavedSession[]> {
+  try {
+    const response = await fetchImpl("/api/sessions", { credentials: "same-origin" });
+    if (!response.ok) return [];
+    const body = await readJson(response);
+    const sessions = body !== null && typeof body === "object" ? (body as { sessions?: unknown }).sessions : null;
+    if (!Array.isArray(sessions)) return [];
+    return sessions.filter(isSavedSession);
+  } catch {
+    return [];
+  }
+}
+
+export function envelopeFromCloud(saved: SavedSession, ownerId: string, fallback: Exploration): DraftEnvelope {
+  const snapshot = saved.session.snapshots.at(-1);
+  return {
+    session: saved.session,
+    unconfirmedText: currentAnswer(saved.session)?.text ?? "",
+    exploration: snapshot
+      ? { config: snapshot.config, frozen: snapshot.config, revealed: snapshot.testRevealed, contaminated: snapshot.testContaminated }
+      : fallback,
+    binding: { ownerId, id: saved.session.id, serverRevision: saved.serverRevision },
+    autoSave: false,
+    pendingSave: null,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export async function synchronize(
