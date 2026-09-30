@@ -18,7 +18,8 @@
 | 七类配额 4 开发 / 2 验收，family 不跨集合 | `tests/unit/evaluation.test.ts` | 结构检查通过 | pass |
 | 程序检查不把模型自评当通过 | `checkTutorOutput` | 只检查 kind / 概念 / 禁句 | pass |
 | `eval:run` 默认不打真实接口 | `EVAL_RUN` 未授权则退出 2 | 单元测试覆盖 | pass |
-| 明确正确被判错、编造来源或数值则阻止发布 | 与具体运行/输出绑定的人类语义审阅 | 案例设计已审；真实模型运行与输出语义标签仍 `not-run`。fixture 运行不改变此项 | not-run |
+| 语义门槛能阻止无效/缺失/过期证据及关键失败 | `tests/unit/semantic-release.test.ts` | 9 项合成单测通过，含重新绑定哈希后的独立负向断言；不是实际模型或人类验收 | pass |
+| 真实输出的语义发布准备 | `npm run eval:release-check -- --run <运行文件> --review <审阅文件>` | 没有真实运行及对应人类输出审阅；以现有设计标签作为证据时退出 1，不能通过。详见[证据格式](semantic-release.md) | blocked |
 | 5 位学习者观察（含手机与桌面） | 去标识化记录，过程中不给答案 | 协议见 `reviews/learner-protocol.md`；记录 0/5 | not-run |
 | 真实 GitHub OAuth | 部署者应用 + 回调 | 仅假凭据注入 | not-run |
 | 真实模型兼容性 / 数据保留政策 | 部署者启用后的 smoke | 仅 mock HTTP | not-run |

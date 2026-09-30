@@ -4,7 +4,7 @@
 
 面向 AI / 机器学习自学者，首个主题是 **过拟合**。电脑与手机先共用响应式 Web 应用；原生安装包不在首版范围。“理解实验室”是工作名。
 
-> 开发中：任务 1–12 工程已实现并审阅。42 条案例设计已由你授权的代理审阅（`eval:check` 通过）。五位学习者、真实 OAuth / 模型、公共部署仍未验收。未发送给 AI 时，离线引导不是 AI 评价。
+> 开发中：任务 1–12 已有工程实现与审阅记录。42 条案例设计由 operator-authorized-agent 审阅（`eval:check` 通过），不等于人类输出验收。真实模型语义审阅、五位学习者、真实 OAuth / 真机与公共部署仍未验收；WebKit 间歇回归仍开放。未发送给 AI 时，离线引导不是 AI 评价。
 
 ## 项目文档
 
@@ -12,6 +12,7 @@
 - **为何这样设计：** [架构与关键决策](docs/decisions.md)。
 - **已验证与未验证：** [2026-09-30 验证记录](docs/verification/2026-09-30.md)。
 - **验收门槛：** [acceptance.md](docs/acceptance.md)。
+- **模型输出发布门槛：** [语义检查与证据格式](docs/semantic-release.md)，缺真实运行/人类审阅即失败。
 - **账号服务：** [部署说明](docs/deployment.md)、[隐私与数据边界](docs/privacy.md)。
 - **完整需求：** [产品设计](docs/superpowers/specs/2026-09-26-understanding-lab-design.md)、[12 项实施计划](docs/superpowers/plans/2026-09-26-understanding-lab.md)。旧计划是执行蓝本，实时状态以交接文档为准。
 
@@ -50,6 +51,7 @@ npm run preview:offline
 | `npm run experiment:generate` | 重建 324 组数据，会更新生成文件；之后须复核差异和数值测试 |
 | `npm run eval:check` | 数据集、案例设计审阅元数据与验收集冻结完整性；不证明人类语义审阅 |
 | `npm run eval:run` | 默认拒绝；需 `EVAL_RUN=true`、正整数预算及 `EVAL_PROVIDER=fixture`；当前只实现确定性夹具，不调用真实接口 |
+| `npm run eval:release-check -- --run <运行文件> --review <审阅文件>` | 离线检查语义发布准备；缺/旧/无效证据即非零退出，不调用模型；详见[证据格式](docs/semantic-release.md) |
 | `.github/workflows/ci.yml` | 私有仓库 CI：typecheck、单元、数值、离线构建、e2e；不调用付费 API |
 | `npm run db:migrate` | 显式迁移 SQLite，先阅读部署说明并填写本地 `.env` |
 | `npm run db:backup` | `backup <源> <目标>` 或 `restore <备份> <目标>`，见 [backup.md](docs/backup.md) |
