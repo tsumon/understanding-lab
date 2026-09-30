@@ -6,6 +6,7 @@
 | --- | --- | --- | --- |
 | 跳过不能显示已掌握 | `tests/e2e/learning-loop.spec.ts` | 小结文案是「未验证」/「已记录」，无「已掌握」 | pass |
 | 确认路径走完解释-预测-实验-再解释-迁移 | `tests/e2e/learning-loop.spec.ts` | 本机 e2e；无真实 AI | pass |
+| 小结保留最新确认的解释 | `tests/e2e/local-loop.spec.ts` | 2026-09-30 本机 iPhone WebKit 曾显示第一版；新增诊断后三次 8/8 通过但根因未证实，无业务修复，不关闭问题 | fail |
 | 导出无 cookie/token/密钥 | `tests/e2e/privacy.spec.ts` | 本机导出 JSON | pass |
 | 前端包无模型/OAuth 密钥；SW 不缓存 API | `tests/e2e/privacy.spec.ts` | 扫描 `dist/` | pass |
 | 日志不含密钥与原文 | `tests/integration/logging.test.ts` | mock 失败分类 | pass |

@@ -77,8 +77,16 @@ test("can skip an unavailable experiment and summarizes the latest confirmed rev
   await page.getByRole("button", { name: "开始学习" }).click();
   await page.getByLabel("我的解释").fill("第一版解释");
   await page.getByRole("button", { name: "确认这段解释" }).click();
+  await expect(page.getByText(/已确认第 1 版/)).toBeVisible();
   await page.getByLabel("我的解释").fill("第二版解释");
+  await expect(page.getByLabel("我的解释")).toHaveValue("第二版解释");
   await page.getByRole("button", { name: "确认这段解释" }).click();
+  await expect(page.getByText(/已确认第 2 版/)).toBeVisible();
+  const confirmedExplanations = () => page.evaluate(() => {
+    const raw = localStorage.getItem("understanding-lab:v1:anonymous:current");
+    return raw ? JSON.parse(raw).session.answers.filter((answer: { step: string }) => answer.step === "explain").map((answer: { text: string }) => answer.text) : [];
+  });
+  await expect.poll(confirmedExplanations).toEqual(["第一版解释", "第二版解释"]);
   await page.getByRole("button", { name: "继续下一步" }).click();
   await page.getByRole("button", { name: "跳过，标记未验证" }).click();
   await page.getByRole("button", { name: "跳过，标记未验证" }).click();
@@ -88,6 +96,7 @@ test("can skip an unavailable experiment and summarizes the latest confirmed rev
   await page.getByRole("button", { name: "跳过，标记未验证" }).click();
   await page.getByRole("button", { name: "跳过，标记未验证" }).click();
   await expect(page.getByRole("heading", { name: "本次小结" })).toBeVisible();
+  await expect.poll(confirmedExplanations).toEqual(["第一版解释", "第二版解释"]);
   await expect(page.getByText("第二版解释")).toBeVisible();
   await expect(page.getByText("第一版解释")).toHaveCount(0);
   await expect(page.getByText("实验：未验证")).toBeVisible();
