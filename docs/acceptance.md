@@ -9,18 +9,20 @@
 | 导出无 cookie/token/密钥 | `tests/e2e/privacy.spec.ts` | 本机导出 JSON | pass |
 | 前端包无模型/OAuth 密钥；SW 不缓存 API | `tests/e2e/privacy.spec.ts` | 扫描 `dist/` | pass |
 | 日志不含密钥与原文 | `tests/integration/logging.test.ts` | mock 失败分类 | pass |
-| 至少 40 条人工审阅样本 | `npm run eval:check` | 42 条由 operator-authorized-agent 于 2026-09-29 审阅设计。不是独立人类 SME，也不是五位学习者 | pass |
-| 材料人工复核 | `content/review.json` | `status: approved`，同一代理审阅；sklearn 本机未能抓取，按公开文档核对 | pass |
+| 至少 40 条案例设计审阅记录 | `npm run eval:check` | 42 条由 operator-authorized-agent 于 2026-09-29 审阅设计；是代理审阅，不是人类签署 | pass |
+| 至少 40 条人类审阅样本 | 独立人类审阅记录 | 代理设计审阅不能代替；尚无人类签署证据 | not-run |
+| 材料代理设计复核 | `content/review.json` | `status: approved`，记录同一代理的审阅；当时 sklearn 页面未能抓取，不代表已核验最新原文 | pass |
+| 材料人类复核 | 人类材料审阅记录 | 尚无人类复核证据 | not-run |
 | 验收集冻结 | `eval/acceptance.sha256` | canonical SHA-256 一致 | pass |
 | 七类配额 4 开发 / 2 验收，family 不跨集合 | `tests/unit/evaluation.test.ts` | 结构检查通过 | pass |
 | 程序检查不把模型自评当通过 | `checkTutorOutput` | 只检查 kind / 概念 / 禁句 | pass |
 | `eval:run` 默认不打真实接口 | `EVAL_RUN` 未授权则退出 2 | 单元测试覆盖 | pass |
-| 明确正确被判错、编造来源或数值则阻止发布 | 人工字段 `unfair_rejection` / `fabricated_metric` | 案例设计已审；模型输出标签仍 `not-run`（未跑 eval:run） | not-run |
+| 明确正确被判错、编造来源或数值则阻止发布 | 与具体运行/输出绑定的人类语义审阅 | 案例设计已审；真实模型运行与输出语义标签仍 `not-run`。fixture 运行不改变此项 | not-run |
 | 5 位学习者观察（含手机与桌面） | 去标识化记录，过程中不给答案 | 协议见 `reviews/learner-protocol.md`；记录 0/5 | not-run |
 | 真实 GitHub OAuth | 部署者应用 + 回调 | 仅假凭据注入 | not-run |
 | 真实模型兼容性 / 数据保留政策 | 部署者启用后的 smoke | 仅 mock HTTP | not-run |
 | 真机麦克风 / 完整无障碍 | 真 iPhone / Android | Playwright 模拟不是真机 | not-run |
-| 双浏览器 live 同步 | `tests/e2e/live-sync.spec.ts` | 测试身份注入；Desktop / Android / WebKit 通过。不是真 GitHub OAuth | pass |
+| 注入身份的双浏览器本机服务同步 | `tests/e2e/live-sync.spec.ts` | 测试身份注入；Desktop / Android / WebKit 通过。不是真 GitHub OAuth | pass |
 | 键盘跳转与 skip link | `tests/e2e/a11y.spec.ts` | 桌面键盘路径；不是真机无障碍审核 | pass |
 | axe WCAG 2 A/AA 严重项 | `tests/e2e/a11y.spec.ts` | 首页与开始学习后无 critical/serious。不是真机审核 | pass |
 | 真实 FFmpeg 解码 | `tests/integration/audio-ffmpeg.test.ts` | 使用 `ffmpeg-static` 解码短 wav，拒绝 61s | pass |
@@ -35,6 +37,6 @@
 | UTC 第 11 次转写 | `tests/e2e/tutor-quota.spec.ts` | 429；无同意为 400 | pass |
 | 未登录 / 跨源 / 重复 requestId | `tests/e2e/tutor-quota.spec.ts` | 401 / 403 / 409 already-used | pass |
 | 第三路转写解码 | `tests/e2e/tutor-quota.spec.ts` | 两路成功，一路 503 | pass |
-| CI | `.github/workflows/ci.yml` | 工作流已提交；本机未代替 GitHub 跑该 workflow | not-run |
+| CI（接手提交） | `.github/workflows/ci.yml` | `52dd8bc` 的 [GitHub run 36508046436](https://github.com/tsumon/understanding-lab/actions/runs/36508046436) 成功；不自动覆盖后续修改 | pass |
 
 没有实际备份策略时不得公共部署，也不虚构「7 天删除」。远程删除不会立刻擦掉其他设备上的离线副本。应用不承诺端到端加密。

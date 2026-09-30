@@ -10,7 +10,7 @@
 
 - **接手 / 继续开发：** [交接文档](docs/handoff.md)，目标、进度、恢复步骤和下一项任务。
 - **为何这样设计：** [架构与关键决策](docs/decisions.md)。
-- **已验证与未验证：** [2026-09-28 验证记录](docs/verification/2026-09-28.md)。
+- **已验证与未验证：** [2026-09-30 验证记录](docs/verification/2026-09-30.md)。
 - **验收门槛：** [acceptance.md](docs/acceptance.md)。
 - **账号服务：** [部署说明](docs/deployment.md)、[隐私与数据边界](docs/privacy.md)。
 - **完整需求：** [产品设计](docs/superpowers/specs/2026-09-26-understanding-lab-design.md)、[12 项实施计划](docs/superpowers/plans/2026-09-26-understanding-lab.md)。旧计划是执行蓝本，实时状态以交接文档为准。
@@ -48,8 +48,8 @@ npm run preview:offline
 | `npm run test:e2e` | Desktop Chrome、iPhone WebKit、Android Chrome（Pixel 5 视口）回归；首次先执行 `npx playwright install chromium webkit` |
 | `npm run experiment:test` | uv、锁定 Python 3.12 / NumPy 环境，独立核验数值 |
 | `npm run experiment:generate` | 重建 324 组数据，会更新生成文件；之后须复核差异和数值测试 |
-| `npm run eval:check` | 评测集门槛；无人标签时必须失败 |
-| `npm run eval:run` | 默认拒绝；需 `EVAL_RUN=true` 与预算，且另有授权才打真实接口 |
+| `npm run eval:check` | 数据集、案例设计审阅元数据与验收集冻结完整性；不证明人类语义审阅 |
+| `npm run eval:run` | 默认拒绝；需 `EVAL_RUN=true`、正整数预算及 `EVAL_PROVIDER=fixture`；当前只实现确定性夹具，不调用真实接口 |
 | `.github/workflows/ci.yml` | 私有仓库 CI：typecheck、单元、数值、离线构建、e2e；不调用付费 API |
 | `npm run db:migrate` | 显式迁移 SQLite，先阅读部署说明并填写本地 `.env` |
 | `npm run db:backup` | `backup <源> <目标>` 或 `restore <备份> <目标>`，见 [backup.md](docs/backup.md) |
