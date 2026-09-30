@@ -10,7 +10,7 @@
 
 - **接手 / 继续开发：** [交接文档](docs/handoff.md)，目标、进度、恢复步骤和下一项任务。
 - **为何这样设计：** [架构与关键决策](docs/decisions.md)。
-- **已验证与未验证：** [2026-09-30 验证记录](docs/verification/2026-09-30.md)。
+- **已验证与未验证：** [最新验证记录（2026-10-01）](docs/verification/2026-10-01.md)、[前一轮完整验证](docs/verification/2026-09-30.md)。
 - **验收门槛：** [acceptance.md](docs/acceptance.md)。
 - **模型输出发布门槛：** [语义检查与证据格式](docs/semantic-release.md)，缺真实运行/人类审阅即失败。
 - **账号服务：** [部署说明](docs/deployment.md)、[隐私与数据边界](docs/privacy.md)。

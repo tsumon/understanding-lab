@@ -6,7 +6,7 @@
 | --- | --- | --- | --- |
 | 跳过不能显示已掌握 | `tests/e2e/learning-loop.spec.ts` | 小结文案是「未验证」/「已记录」，无「已掌握」 | pass |
 | 确认路径走完解释-预测-实验-再解释-迁移 | `tests/e2e/learning-loop.spec.ts` | 本机 e2e；无真实 AI | pass |
-| 小结保留最新确认的解释 | `tests/e2e/local-loop.spec.ts` | 2026-09-30 本机 iPhone WebKit 曾显示第一版；新增诊断后三次 8/8 通过但根因未证实，无业务修复，不关闭问题 | fail |
+| 小结保留最新确认的解释 | `tests/e2e/local-loop.spec.ts` | 2026-09-30 本机 iPhone WebKit 曾显示第一版；10-01 新增快速路径及失败轨迹，完整回归 68 通过/13 跳过但无新失败证据和业务修复，不关闭问题 | fail |
 | 导出无 cookie/token/密钥 | `tests/e2e/privacy.spec.ts` | 本机导出 JSON | pass |
 | 前端包无模型/OAuth 密钥；SW 不缓存 API | `tests/e2e/privacy.spec.ts` | 扫描 `dist/` | pass |
 | 日志不含密钥与原文 | `tests/integration/logging.test.ts` | mock 失败分类 | pass |
@@ -39,6 +39,6 @@
 | UTC 第 11 次转写 | `tests/e2e/tutor-quota.spec.ts` | 429；无同意为 400 | pass |
 | 未登录 / 跨源 / 重复 requestId | `tests/e2e/tutor-quota.spec.ts` | 401 / 403 / 409 already-used | pass |
 | 第三路转写解码 | `tests/e2e/tutor-quota.spec.ts` | 两路成功，一路 503 | pass |
-| CI（接手提交） | `.github/workflows/ci.yml` | `52dd8bc` 的 [GitHub run 36508046436](https://github.com/tsumon/understanding-lab/actions/runs/36508046436) 成功；不自动覆盖后续修改 | pass |
+| CI（已核对提交） | `.github/workflows/ci.yml` | `0e7dbe3` 的 [GitHub run 36709590322](https://github.com/tsumon/understanding-lab/actions/runs/36709590322) 成功；不自动覆盖后续修改 | pass |
 
 没有实际备份策略时不得公共部署，也不虚构「7 天删除」。远程删除不会立刻擦掉其他设备上的离线副本。应用不承诺端到端加密。

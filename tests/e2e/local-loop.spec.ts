@@ -102,6 +102,80 @@ test("can skip an unavailable experiment and summarizes the latest confirmed rev
   await expect(page.getByText("实验：未验证")).toBeVisible();
 });
 
+test("rapid revisions keep the latest explanation through skipped stages", async ({ page, isMobile }, testInfo) => {
+  await page.addInitScript(() => {
+    const key = "understanding-lab:v1:anonymous:current";
+    const trace: object[] = [];
+    let dropped = 0;
+    const syntheticText = (value: unknown) => value === "第一版解释" || value === "第二版解释" ? value : value === "" ? "" : "<other>";
+    const answersFrom = (raw: string | null) => {
+      try {
+        const parsed = raw ? JSON.parse(raw) : null;
+        return {
+          draft: syntheticText(parsed?.unconfirmedText),
+          answers: (parsed?.session?.answers ?? []).filter((answer: { step: string }) => answer.step === "explain")
+            .map((answer: { id: string; revision: number; text: string }) => ({ id: answer.id, revision: answer.revision, text: syntheticText(answer.text) })),
+        };
+      } catch { return { draft: "<unreadable>", answers: [] }; }
+    };
+    const record = (kind: string, details: object) => {
+      if (trace.length < 80) trace.push({ at: Math.round(performance.now()), kind, ...details });
+      else dropped += 1;
+    };
+    Object.defineProperty(window, "__rapidRevisionTrace", { value: () => ({ entries: trace, dropped }) });
+    for (const kind of ["input", "change", "compositionstart", "compositionend"]) {
+      document.addEventListener(kind, (event) => {
+        if (event.target instanceof HTMLTextAreaElement) record(kind, { value: syntheticText(event.target.value) });
+      }, true);
+    }
+    document.addEventListener("click", (event) => {
+      const button = event.target instanceof Element ? event.target.closest("button") : null;
+      const label = button?.textContent?.trim();
+      if (!label || !["开始学习", "确认这段解释", "继续下一步", "跳过，标记未验证", "讲解"].includes(label)) return;
+      const textarea = document.querySelector("textarea");
+      let stored: ReturnType<typeof answersFrom>;
+      try { stored = answersFrom(localStorage.getItem(key)); }
+      catch { stored = { draft: "<unreadable>", answers: [] }; }
+      record("click", { label, value: syntheticText(textarea?.value), stored });
+    }, true);
+    const originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(storageKey, value) {
+      const result = originalSetItem.call(this, storageKey, value);
+      try {
+        if (this === localStorage && storageKey === key) record("write", answersFrom(value));
+      } catch { /* Tracing must not alter a successful storage write. */ }
+      return result;
+    };
+  });
+
+  try {
+    await page.goto("/");
+    await page.getByRole("button", { name: "开始学习" }).click();
+    await page.getByLabel("我的解释").fill("第一版解释");
+    await page.getByRole("button", { name: "确认这段解释" }).click();
+    await page.getByLabel("我的解释").fill("第二版解释");
+    await page.getByRole("button", { name: "确认这段解释" }).click();
+    await page.getByRole("button", { name: "继续下一步" }).click();
+    await page.getByRole("button", { name: "跳过，标记未验证" }).click();
+    await page.getByRole("button", { name: "跳过，标记未验证" }).click();
+    await page.getByRole("button", { name: "跳过，标记未验证" }).click();
+    if (isMobile) await page.getByRole("button", { name: "讲解" }).click();
+    await page.getByRole("button", { name: "跳过，标记未验证" }).click();
+    await page.getByRole("button", { name: "跳过，标记未验证" }).click();
+    await page.getByRole("button", { name: "跳过，标记未验证" }).click();
+    await expect(page.getByRole("heading", { name: "本次小结" })).toBeVisible();
+    await expect(page.getByText("第二版解释")).toBeVisible();
+    await expect(page.getByText("第一版解释")).toHaveCount(0);
+    await expect(page.getByText("实验：未验证")).toBeVisible();
+  } catch (error) {
+    try {
+      const trace = await page.evaluate(() => (window as Window & { __rapidRevisionTrace?: () => object }).__rapidRevisionTrace?.());
+      await testInfo.attach("rapid-revision-trace.json", { body: JSON.stringify(trace, null, 2), contentType: "application/json" });
+    } catch { /* Keep the original assertion failure if the page is unavailable. */ }
+    throw error;
+  }
+});
+
 test("keeps in-memory text and offers export when storage is full", async ({ page }) => {
   await page.addInitScript(() => {
     const original = Storage.prototype.setItem;
