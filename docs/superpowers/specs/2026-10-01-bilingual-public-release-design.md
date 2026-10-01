@@ -2,7 +2,7 @@
 
 Date: 2026-10-01. Baseline: `1a8ed98` on `codex/understanding-lab-mvp`.
 
-Status: the user approved the scope in chat; this written design is awaiting their review before implementation planning. One read-only Astra architecture pass informed the compatibility decisions below. This document is a proposal, not evidence that the feature or public-release checks are complete.
+Status: the user approved the scope and continued after reviewing this written-design checkpoint on 2026-10-01. Implementation planning/execution is authorized. One read-only Astra architecture pass informed the compatibility decisions below. This document is the implementation contract, not evidence that the feature or public-release checks are complete.
 
 ## 1. Outcome and scope
 
