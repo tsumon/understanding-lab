@@ -30,4 +30,14 @@ jobs:
       - name: Fixture eval (deterministic, not a paid model)
         run: EVAL_RUN=true EVAL_PROVIDER=fixture EVAL_BUDGET=42 EVAL_RUN_DIR=tmp-eval-run npm run eval:run
       - run: npx playwright install --with-deps chromium webkit
-      - run: npm run test:e2e
+      - name: Browser e2e
+        id: e2e
+        run: npm run test:e2e
+      - name: Upload rapid revision trace on e2e failure
+        if: ${{ failure() && steps.e2e.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rapid-revision-traces-${{ github.run_id }}-${{ github.run_attempt }}
+          path: test-results/**/rapid-revision-trace.json
+          retention-days: 7
+          if-no-files-found: warn

@@ -12,7 +12,7 @@
 | 日志不含密钥与原文 | `tests/integration/logging.test.ts` | mock 失败分类 | pass |
 | 至少 40 条案例设计审阅记录 | `npm run eval:check` | 42 条由 operator-authorized-agent 于 2026-09-29 审阅设计；是代理审阅，不是人类签署 | pass |
 | 至少 40 条人类审阅样本 | 独立人类审阅记录 | 代理设计审阅不能代替；尚无人类签署证据 | not-run |
-| 材料代理设计复核 | `content/review.json` | `status: approved`，记录同一代理的审阅；当时 sklearn 页面未能抓取，不代表已核验最新原文 | pass |
+| 材料代理设计复核 | `content/review.json` | `status: approved`，历史记录为同一代理审阅；10-01 补充[实际在线来源复核](content-source-check-2026-10-01.md)，保留部分引用覆盖与推论边界，不替代人类审批 | pass |
 | 材料人类复核 | 人类材料审阅记录 | 尚无人类复核证据 | not-run |
 | 验收集冻结 | `eval/acceptance.sha256` | canonical SHA-256 一致 | pass |
 | 七类配额 4 开发 / 2 验收，family 不跨集合 | `tests/unit/evaluation.test.ts` | 结构检查通过 | pass |
@@ -39,6 +39,6 @@
 | UTC 第 11 次转写 | `tests/e2e/tutor-quota.spec.ts` | 429；无同意为 400 | pass |
 | 未登录 / 跨源 / 重复 requestId | `tests/e2e/tutor-quota.spec.ts` | 401 / 403 / 409 already-used | pass |
 | 第三路转写解码 | `tests/e2e/tutor-quota.spec.ts` | 两路成功，一路 503 | pass |
-| CI（已核对提交） | `.github/workflows/ci.yml` | `0e7dbe3` 的 [GitHub run 36709590322](https://github.com/tsumon/understanding-lab/actions/runs/36709590322) 成功；不自动覆盖后续修改 | pass |
+| CI（已核对提交） | `.github/workflows/ci.yml` | `286153a` 的 [GitHub run 36747711932](https://github.com/tsumon/understanding-lab/actions/runs/36747711932) 成功；不自动覆盖后续修改 | pass |
 
 没有实际备份策略时不得公共部署，也不虚构「7 天删除」。远程删除不会立刻擦掉其他设备上的离线副本。应用不承诺端到端加密。

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:net";
+import { persistRapidRevisionTrace } from "./helpers/rapid-trace";
 
 async function freeLocalPort(): Promise<number> {
   const server = createServer();
@@ -170,7 +171,7 @@ test("rapid revisions keep the latest explanation through skipped stages", async
   } catch (error) {
     try {
       const trace = await page.evaluate(() => (window as Window & { __rapidRevisionTrace?: () => object }).__rapidRevisionTrace?.());
-      await testInfo.attach("rapid-revision-trace.json", { body: JSON.stringify(trace, null, 2), contentType: "application/json" });
+      await persistRapidRevisionTrace(testInfo, trace);
     } catch { /* Keep the original assertion failure if the page is unavailable. */ }
     throw error;
   }

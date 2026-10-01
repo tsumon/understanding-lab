@@ -12,6 +12,7 @@
 - **为何这样设计：** [架构与关键决策](docs/decisions.md)。
 - **已验证与未验证：** [最新验证记录（2026-10-01）](docs/verification/2026-10-01.md)、[前一轮完整验证](docs/verification/2026-09-30.md)。
 - **验收门槛：** [acceptance.md](docs/acceptance.md)。
+- **首课来源核对：** [逐段证据与限制](docs/content-source-check-2026-10-01.md)，实际在线读取，不替代人类审批。
 - **模型输出发布门槛：** [语义检查与证据格式](docs/semantic-release.md)，缺真实运行/人类审阅即失败。
 - **账号服务：** [部署说明](docs/deployment.md)、[隐私与数据边界](docs/privacy.md)。
 - **完整需求：** [产品设计](docs/superpowers/specs/2026-09-26-understanding-lab-design.md)、[12 项实施计划](docs/superpowers/plans/2026-09-26-understanding-lab.md)。旧计划是执行蓝本，实时状态以交接文档为准。
