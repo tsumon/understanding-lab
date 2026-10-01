@@ -1,0 +1,18 @@
+{
+  "version": "overfitting.v1",
+  "title": "Why low training error does not guarantee better performance",
+  "paragraphs": [
+    {"id":"p-splits","text":"The training set is used to fit parameters, and the validation set is used to choose a configuration. Use the final test set after selection is complete; repeatedly adjusting a model based on test results brings test information into the selection process.","source":"https://scikit-learn.org/stable/modules/cross_validation.html"},
+    {"id":"p-fit","text":"A model may learn patterns, or it may follow noise in the sample. A better fit to the training data does not guarantee better performance on unseen data.","source":"https://scikit-learn.org/stable/auto_examples/model_selection/plot_underfitting_overfitting.html"},
+    {"id":"p-context","text":"Model complexity, sample size, noise, and the data split all affect the results you observe. A degree that performs better in one experiment is not a rule that applies to every dataset.","source":"https://scikit-learn.org/stable/auto_examples/model_selection/plot_underfitting_overfitting.html"},
+    {"id":"p-evidence","text":"This experiment shows mean squared error on specific synthetic data. Changing parameters provides observations; explanations and transfer answers provide additional evidence of understanding.","source":"internal:learning-design-v1"}
+  ],
+  "questions": [
+    {"id":"explain-1","text":"How would you explain very low training error but poor performance on new data?"},
+    {"id":"clarify-1","text":"When you say performance, do you mean training data or data not used for fitting?"},
+    {"id":"clarify-2","text":"How could you distinguish learning a pattern from following noise?"},
+    {"id":"predict-1","text":"With the sample and noise held constant, how might training and validation error change as the degree increases?"},
+    {"id":"reexplain-1","text":"Use your observations to explain the relationship between training error and generalization again."},
+    {"id":"transfer-1","text":"If you repeatedly choose the best configuration using the same test set, is that result still independent evidence of generalization? Why?"}
+  ]
+}
