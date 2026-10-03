@@ -64,6 +64,16 @@ test("explicit evidence locale must match the registered edition even when IDs c
     evidenceLocale: "en" })).toThrow("source");
   expect(() => verifyTutor(valid(), { session: session(), topic: TopicSchema.parse(topicJson), pack,
     evidenceLocale: "zh-CN" })).not.toThrow();
+  const changed = { ...topic, paragraphs: topic.paragraphs.map((paragraph) =>
+    paragraph.id === "p-fit" ? { ...paragraph, text: "Altered evidence" } : paragraph) };
+  expect(() => verifyTutor(valid(), { session: session(), topic: changed, pack,
+    evidenceLocale: "zh-CN" })).toThrow("source");
+});
+
+test("equivalent parsed evidence with different property insertion order verifies", () => {
+  const reordered = Object.fromEntries(Object.entries(topic).reverse()) as typeof topic;
+  expect(() => verifyTutor(valid(), { session: session(), topic: reordered, pack,
+    evidenceLocale: "zh-CN" })).not.toThrow();
 });
 
 test("rejects other-session snapshots and hidden test metrics", () => {

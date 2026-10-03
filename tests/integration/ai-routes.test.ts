@@ -128,6 +128,22 @@ test("invalid locale is rejected before provider use and locale is part of expli
   expect(generate).toHaveBeenCalledTimes(1);
 });
 
+test("invalid historical question identities are rejected before a tutor reservation", async () => {
+  const deps = await setup("alice");
+  const generate = vi.fn().mockResolvedValue(valid);
+  deps.tutorProvider = { model: "test-fake", generate };
+  const app = createApp(deps);
+  for (const questionId of ["missing-static", "tutor:missing-feedback"]) {
+    const session = { ...newSession(`bad-${questionId}`), answers: [{ id: "a", revision: 1,
+      step: "explain" as const, questionId, text: "An answer", confirmedAt: "2026-10-01" }] };
+    const response = await post(app, deps.publicOrigin, tutorBody(`bad-${questionId}`, session));
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: "invalid-request" });
+  }
+  expect(generate).not.toHaveBeenCalled();
+  expect(usageCount(deps.db, "alice")).toBe(0);
+});
+
 test("31st tutor reserve in one UTC day is 429 and generate is called at most 30 times", async () => {
   const deps = await setup("alice");
   const generate = vi.fn().mockResolvedValue(valid);

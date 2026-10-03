@@ -6,6 +6,7 @@ import packJson from "../../public/experiments/overfitting.v1.json";
 import { SessionSchema } from "../domain/contracts";
 import { topicFor } from "../content/topics";
 import { LocaleSchema, legacyLocale } from "../domain/locale";
+import { questionForAnswer } from "../domain/session";
 import { loadCase, parsePack } from "../experiment/catalog";
 import { runTutor, type TutorProvider } from "../tutor/service";
 import { QuotaLedger } from "./quota";
@@ -81,6 +82,7 @@ export function mountAiRoutes(app: Express, deps: AiDeps): void {
           if (snapshot.packVersion !== pack.version) throw new Error("pack-mismatch");
           loadCase(pack, snapshot.config);
         }
+        for (const answer of submitted.answers) questionForAnswer(submitted, answer);
       } catch { res.status(400).json({ error: "invalid-request" }); return; }
 
       const candidateLock = `${owner}:${submitted.id}`;

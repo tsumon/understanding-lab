@@ -39,7 +39,8 @@ export function verifyHistoricalTutor(raw: unknown, context: TutorContext): Tuto
   const { session, topic, pack } = context;
   if (topic.version !== session.topicVersion || pack.version !== session.topicVersion) throw new VerificationError("source");
   const registered = topicFor(session.topicVersion, legacyLocale(context.evidenceLocale));
-  if (JSON.stringify(topic) !== JSON.stringify(registered)) throw new VerificationError("source");
+  const normalized = TopicSchema.safeParse(topic);
+  if (!normalized.success || JSON.stringify(normalized.data) !== JSON.stringify(registered)) throw new VerificationError("source");
 
   if ((output.kind === "supported" || output.kind === "contradiction") && output.quotes.length === 0) throw new VerificationError("quote");
   for (const quote of output.quotes) {
