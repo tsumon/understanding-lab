@@ -1,13 +1,14 @@
 import type Database from "better-sqlite3";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import topicJson from "../../content/overfitting.v1.json";
 import packJson from "../../public/experiments/overfitting.v1.json";
 import {
-  RECOVERED_FEEDBACK_MODEL, RECOVERED_FEEDBACK_PROMPT_VERSION, SessionSchema, TopicSchema,
+  RECOVERED_FEEDBACK_MODEL, RECOVERED_FEEDBACK_PROMPT_VERSION, SessionSchema,
   type LearningSession, type SavedSession,
 } from "../domain/contracts";
-import { questionFor } from "../domain/session";
+import { questionForAnswer } from "../domain/session";
+import { topicFor } from "../content/topics";
+import { legacyLocale } from "../domain/locale";
 import { loadCase, parsePack } from "../experiment/catalog";
 import { verifyHistoricalTutor } from "../tutor/verify";
 
@@ -21,7 +22,6 @@ export class SessionRepositoryError extends Error {
 
 type SessionRow = { owner_id: string; revision: number; payload: string | null; deleted_at: string | null };
 type KeyRow = { request_hash: string; response_json: string };
-const topic = TopicSchema.parse(topicJson);
 let pack: ReturnType<typeof parsePack> | undefined;
 
 function canonicalJson(value: unknown): string {
@@ -45,13 +45,14 @@ function unique(values: string[]): void {
 function validate(id: string, payload: unknown): LearningSession {
   try {
     const session = SessionSchema.parse(payload);
-    if (session.id !== id || session.topicVersion !== topic.version) throw new Error("session-mismatch");
+    if (session.id !== id) throw new Error("session-mismatch");
+    topicFor(session.topicVersion, "zh-CN");
     unique(session.answers.map((answer) => JSON.stringify([answer.id, answer.revision])));
     unique(session.snapshots.map((snapshot) => snapshot.id));
     unique(session.feedback.map((feedback) => feedback.id));
     for (const answer of session.answers) {
       requireIdentifier(answer.id);
-      questionFor(session, answer.questionId);
+      questionForAnswer(session, answer);
       const earlier = session.answers.find((item) => item.id === answer.id);
       if (earlier && (earlier.step !== answer.step || earlier.questionId !== answer.questionId
         || earlier.clarificationRound !== answer.clarificationRound)) throw new Error("answer-identity-conflict");
@@ -68,7 +69,9 @@ function validate(id: string, payload: unknown): LearningSession {
       loadCase(pack, snapshot.config);
     }
     for (const feedback of session.feedback) {
-      verifyHistoricalTutor(feedback.output, { session, topic, pack });
+      const evidenceLocale = legacyLocale(feedback.evidenceLocale);
+      verifyHistoricalTutor(feedback.output, { session, topic: topicFor(session.topicVersion, evidenceLocale),
+        pack, evidenceLocale });
     }
     for (const disagreement of session.disagreements) {
       if (!session.feedback.some((feedback) => feedback.id === disagreement.feedbackId)) throw new Error("missing-feedback");

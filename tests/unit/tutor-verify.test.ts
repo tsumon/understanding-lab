@@ -6,6 +6,7 @@ import { parsePack } from "../../src/experiment/catalog";
 import { verifyQuote, verifyTutor, VerificationError } from "../../src/tutor/verify";
 import { buildPrompt, PROMPT_VERSION } from "../../src/tutor/prompt";
 import { tutorWireJsonSchema } from "../../src/tutor/schema";
+import { topicFor } from "../../src/content/topics";
 
 const topic = TopicSchema.parse(topicJson);
 const pack = parsePack(packJson);
@@ -58,6 +59,13 @@ test("rejects sources outside this exact topic", () => {
   }
 });
 
+test("explicit evidence locale must match the registered edition even when IDs coincide", () => {
+  expect(() => verifyTutor(valid(), { session: session(), topic: topicFor("overfitting.v1", "zh-CN"), pack,
+    evidenceLocale: "en" })).toThrow("source");
+  expect(() => verifyTutor(valid(), { session: session(), topic: TopicSchema.parse(topicJson), pack,
+    evidenceLocale: "zh-CN" })).not.toThrow();
+});
+
 test("rejects other-session snapshots and hidden test metrics", () => {
   expect(code({ ...valid(), metrics: [{ snapshotId: "other-session:snap1", metric: "trainMse" }] })).toBe("metric");
   expect(code({ ...valid(), metrics: [{ snapshotId: "snap1", metric: "testMse" }] })).toBe("metric");
@@ -108,8 +116,9 @@ test("prompt pairs two experiment configurations with predictions, results, and 
     snapshots: [snapshot, contaminated] };
   const result = buildPrompt({ session: current, topic, pack });
   const data = JSON.parse(result.data);
-  expect(PROMPT_VERSION).toBe("overfitting-tutor-v1");
-  expect(data.answers).toEqual([{ id: "a1", revision: 2, step: "explain", questionId: "explain-1", text: "修订的解释" }]);
+  expect(PROMPT_VERSION).toBe("overfitting-tutor-v2");
+  expect(data.answers).toEqual([{ id: "a1", revision: 2, step: "explain", questionId: "explain-1",
+    question: "你怎样解释训练误差很低，但新数据上表现不好？", text: "修订的解释" }]);
   expect(data.experiments).toEqual([
     { snapshotId: "snap1", packVersion: "overfitting.v1", config: { seed: 17, n: 20, noise: 0.1, degree: 2 },
       prediction: "验证误差可能升高", testRevealed: false, testContaminated: false,

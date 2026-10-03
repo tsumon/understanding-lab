@@ -2,10 +2,13 @@ import type { Answer, LearningSession, TutorOutput } from "../domain/contracts";
 import { TopicSchema } from "../domain/contracts";
 import { metricFor, type ExperimentPack } from "../experiment/catalog";
 import { TutorOutputSchema } from "./schema";
+import { topicFor } from "../content/topics";
+import { legacyLocale, type Locale } from "../domain/locale";
 import type { z } from "zod";
 
 export type Topic = z.infer<typeof TopicSchema>;
-export type TutorContext = { session: LearningSession; topic: Topic; pack: ExperimentPack; includeNotes?: boolean };
+export type TutorContext = { session: LearningSession; topic: Topic; pack: ExperimentPack; includeNotes?: boolean;
+  evidenceLocale?: Locale; responseLocale?: Locale };
 export type VerificationCode = "schema" | "quote" | "source" | "metric" | "action";
 
 export class VerificationError extends Error {
@@ -35,6 +38,8 @@ export function verifyHistoricalTutor(raw: unknown, context: TutorContext): Tuto
   const output = parsed.data;
   const { session, topic, pack } = context;
   if (topic.version !== session.topicVersion || pack.version !== session.topicVersion) throw new VerificationError("source");
+  const registered = topicFor(session.topicVersion, legacyLocale(context.evidenceLocale));
+  if (JSON.stringify(topic) !== JSON.stringify(registered)) throw new VerificationError("source");
 
   if ((output.kind === "supported" || output.kind === "contradiction") && output.quotes.length === 0) throw new VerificationError("quote");
   for (const quote of output.quotes) {

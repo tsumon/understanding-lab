@@ -146,3 +146,28 @@ test("a late finish from an old request cannot clear a newer postTutor", async (
   releaseNew!(tutorResponse(200, { requestId: newId, contentRevision: 4, result: okResult }));
   await expect(second).resolves.toEqual({ status: "accepted", requestId: newId, contentRevision: 4, result: okResult });
 });
+
+test("an English request retains its captured locale when the external selection changes", async () => {
+  let selected: "en" | "zh-CN" = "en";
+  let release!: (response: Response) => void;
+  const fetchImpl = vi.fn<typeof fetch>(() => new Promise((resolve) => { release = resolve; }));
+  const pending = postTutor(sessionWithNotes, { sendConsent: true, locale: selected, guard: new TutorRequestGuard(), fetchImpl });
+  const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body));
+  selected = "zh-CN";
+  expect(body.locale).toBe("en");
+  const english = { ...okResult, evidenceLocale: "en", responseLocale: "en" };
+  release(tutorResponse(200, { requestId: body.requestId, contentRevision: 3, result: english }));
+  await expect(pending).resolves.toMatchObject({ status: "accepted", result: english });
+  expect(selected).toBe("zh-CN");
+});
+
+test("English success without matching locale metadata is invalid output", async () => {
+  for (const result of [okResult, { ...okResult, responseLocale: "zh-CN", evidenceLocale: "en" },
+    { ...okResult, responseLocale: "fr", evidenceLocale: "en" }]) {
+    const fetchImpl = vi.fn<typeof fetch>(async (_url, init) => tutorResponse(200, {
+      requestId: JSON.parse(String(init?.body)).requestId, contentRevision: 3, result,
+    }));
+    const outcome = await postTutor(sessionWithNotes, { sendConsent: true, locale: "en", guard: new TutorRequestGuard(), fetchImpl });
+    expect(outcome).toMatchObject({ status: "unavailable", reason: "invalid-output" });
+  }
+});

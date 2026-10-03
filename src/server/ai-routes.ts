@@ -2,14 +2,14 @@ import express, { type Express, type NextFunction, type Request, type Response }
 import type Database from "better-sqlite3";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import topicJson from "../../content/overfitting.v1.json";
 import packJson from "../../public/experiments/overfitting.v1.json";
-import { SessionSchema, TopicSchema } from "../domain/contracts";
+import { SessionSchema } from "../domain/contracts";
+import { topicFor } from "../content/topics";
+import { LocaleSchema, legacyLocale } from "../domain/locale";
 import { loadCase, parsePack } from "../experiment/catalog";
 import { runTutor, type TutorProvider } from "../tutor/service";
 import { QuotaLedger } from "./quota";
 
-const topic = TopicSchema.parse(topicJson);
 let pack: ReturnType<typeof parsePack> | undefined;
 
 const tutorBody = z.strictObject({
@@ -17,6 +17,7 @@ const tutorBody = z.strictObject({
   session: SessionSchema,
   includeNotes: z.boolean(),
   sendConsent: z.literal(true),
+  locale: LocaleSchema.optional(),
 });
 
 type AiDeps = { db: Database.Database; tutorProvider: TutorProvider; clock: () => Date };
@@ -64,7 +65,7 @@ export function mountAiRoutes(app: Express, deps: AiDeps): void {
       const parsed = tutorBody.safeParse(body);
       if (!parsed.success) { res.status(400).json({ error: "invalid-request" }); return; }
 
-      const { requestId, includeNotes } = parsed.data;
+      const { requestId, includeNotes, locale } = parsed.data;
       const submitted = parsed.data.session;
       const owner = ownerId(res);
       const row = deps.db.prepare("SELECT owner_id, deleted_at FROM learning_sessions WHERE id = ?")
@@ -88,7 +89,7 @@ export function mountAiRoutes(app: Express, deps: AiDeps): void {
       lockKey = candidateLock;
 
       const requestHash = createHash("sha256")
-        .update(canonicalJson({ session: submitted, includeNotes })).digest("hex");
+        .update(canonicalJson({ session: submitted, includeNotes, ...(locale === undefined ? {} : { locale }) })).digest("hex");
       const status = quota.reserveOperation(owner, requestId, "tutor", requestHash, deps.clock());
       if (status !== "reserved") {
         sessionLocks.delete(lockKey);
@@ -102,7 +103,8 @@ export function mountAiRoutes(app: Express, deps: AiDeps): void {
 
       const session = { ...submitted, notes: includeNotes ? submitted.notes : "" };
       const result = await runTutor(
-        { session, topic, pack, includeNotes }, deps.tutorProvider, controller.signal,
+        { session, topic: topicFor(session.topicVersion, legacyLocale(locale)), pack, includeNotes,
+          evidenceLocale: legacyLocale(locale), responseLocale: legacyLocale(locale) }, deps.tutorProvider, controller.signal,
       );
       quota.finishOperation(owner, requestId, result.status === "ok");
       reserved = undefined;

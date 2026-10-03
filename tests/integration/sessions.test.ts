@@ -186,6 +186,23 @@ test("historical feedback keeps old exact evidence and round identity but is mar
   expect(draft.feedback[0].model).toBe("untrusted-provider-claim");
 });
 
+test("English provenance survives save/load, recovery normalization, and key replay", () => {
+  const { repo } = setup();
+  const draft = history();
+  draft.answers[0].questionLocale = "en";
+  draft.feedback[0].evidenceLocale = "en";
+  draft.feedback[0].responseLocale = "zh-CN";
+  const first = repo.save("alice", "s1", 0, "locale-key", draft);
+  expect(first.session.answers[0].questionLocale).toBe("en");
+  expect(first.session.feedback[0]).toMatchObject({ evidenceLocale: "en", responseLocale: "zh-CN",
+    model: "本机恢复", promptVersion: "local-recovery-v1" });
+  expect(repo.get("alice", "s1")).toEqual(first);
+  expect(repo.save("alice", "s1", 0, "locale-key", draft)).toEqual(first);
+  expect(() => repo.save("alice", "s1", 0, "locale-key", { ...draft, answers: [
+    { ...draft.answers[0], questionLocale: "zh-CN" }, ...draft.answers.slice(1),
+  ] })).toThrow("409");
+});
+
 test.each([
   ["wrong session ID", (s: LearningSession) => { s.id = "other"; }],
   ["unknown question", (s: LearningSession) => { s.answers[0].questionId = "unknown"; }],

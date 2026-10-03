@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TutorOutputSchema } from "../tutor/schema";
+import { LocaleSchema, type Locale } from "./locale";
 
 export type Step = "explain" | "clarify" | "predict" | "experiment"
   | "reexplain" | "transfer" | "summary";
@@ -8,6 +9,7 @@ export type ExperimentConfig = {
 };
 export type Answer = {
   id: string; revision: number; step: Step; questionId: string;
+  questionLocale?: Locale;
   clarificationRound?: 1 | 2;
   text: string; confirmedAt: string;
 };
@@ -28,6 +30,7 @@ export type TutorOutput = {
 };
 export type StoredFeedback = {
   id: string; contentRevision: number; output: TutorOutput;
+  evidenceLocale?: Locale; responseLocale?: Locale;
   model: string; promptVersion: string; createdAt: string;
 };
 export type LearningSession = {
@@ -61,6 +64,7 @@ const AnswerSchema = z.strictObject({
   revision: z.number().int().min(0),
   step: StepSchema,
   questionId: z.string(),
+  questionLocale: LocaleSchema.optional(),
   clarificationRound: z.union([z.literal(1), z.literal(2)]).optional(),
   text: codepointLengthAtMost(4000),
   confirmedAt: z.string(),
@@ -81,6 +85,8 @@ const StoredFeedbackSchema = z.strictObject({
   id: z.string(),
   contentRevision: z.number().int().min(0),
   output: TutorOutputSchema,
+  evidenceLocale: LocaleSchema.optional(),
+  responseLocale: LocaleSchema.optional(),
   model: z.string(),
   promptVersion: z.string(),
   createdAt: z.string(),

@@ -31,7 +31,8 @@ test("invalid output gets exactly one repair attempt and no judgment is shown", 
 test("a valid first reply returns its model and prompt version without repair", async () => {
   const generate = vi.fn().mockResolvedValue(valid);
   const result = await runTutor(context, { generate, model: "test-fake" }, new AbortController().signal);
-  expect(result).toEqual({ status: "ok", output: valid, model: "test-fake", promptVersion: "overfitting-tutor-v1" });
+  expect(result).toEqual({ status: "ok", output: valid, model: "test-fake", promptVersion: "overfitting-tutor-v2",
+    evidenceLocale: "zh-CN", responseLocale: "zh-CN" });
   expect(generate).toHaveBeenCalledTimes(1);
 });
 
@@ -50,7 +51,8 @@ test("repair adds only a fixed instruction and preserves consent and latest answ
   expect(prompts[1].data).toBe(prompts[0].data);
   expect(prompts[0].data).not.toContain("PRIVATE-NOTE");
   expect(JSON.parse(prompts[0].data).answers).toEqual([
-    { id: "a1", revision: 2, step: "explain", questionId: "explain-1", text: "新回答" },
+    { id: "a1", revision: 2, step: "explain", questionId: "explain-1",
+      question: "你怎样解释训练误差很低，但新数据上表现不好？", text: "新回答" },
   ]);
   await runTutor({ ...current, includeNotes: true }, { generate, model: "test-fake" }, new AbortController().signal);
   expect(JSON.parse(prompts[2].data).notes).toEqual({ kind: "untrusted-personal-note", text: "PRIVATE-NOTE" });

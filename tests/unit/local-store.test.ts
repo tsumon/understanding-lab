@@ -56,6 +56,18 @@ describe("anonymous local drafts", () => {
     expect(readEnvelope(id)?.unconfirmedText).toBe("继续编辑");
   });
 
+  it("round trips locale provenance without changing a pending cloud save identity", () => {
+    const session = { ...newSession(id), answers: [{ id: "a", revision: 1, step: "explain" as const,
+      questionId: "explain-1", questionLocale: "en" as const, text: "Noise may be learned", confirmedAt: "2026-10-01" }] };
+    const local = { ...envelope(), session, pendingSave: { id: "save-1", key: "key-1", hash: "hash-1" } };
+    const cloud = { session, serverRevision: 2 };
+    expect(writeEnvelope(id, local)).toEqual({ ok: true });
+    expect(writeConflict(id, { local, cloud })).toEqual({ ok: true });
+    expect(readEnvelope(id)).toEqual(local);
+    expect(readConflict(id)).toEqual({ local, cloud });
+    expect(readEnvelope(id)?.pendingSave).toEqual({ id: "save-1", key: "key-1", hash: "hash-1" });
+  });
+
   it("reports quota failures without replacing the previous value", () => {
     const previous = JSON.stringify(envelope());
     localStorage.setItem(key, previous);

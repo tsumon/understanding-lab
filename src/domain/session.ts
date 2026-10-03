@@ -1,5 +1,6 @@
-import topic from "../../content/overfitting.v1.json";
+import { topicFor } from "../content/topics";
 import { SessionSchema, type Answer, type LearningSession, type Snapshot, type Step, type StoredFeedback } from "./contracts";
+import { legacyLocale, type Locale } from "./locale";
 
 export type SessionEvent =
   | { type: "confirm"; answer: Answer }
@@ -40,15 +41,29 @@ function uniqueFeedback(session: LearningSession, id: string): StoredFeedback {
 }
 
 /** Recovers original wording even when a historical tutor question is now stale. */
-export function questionFor(session: LearningSession, id: string): string {
+export function questionFor(session: LearningSession, id: string, locale?: Locale): string {
   if (id.startsWith("tutor:")) {
     const feedback = uniqueFeedback(session, id.slice(6));
     if (!feedback.output.question?.trim()) throw new Error("question-required");
     return feedback.output.question;
   }
-  const question = session.topicVersion === topic.version && topic.questions.find((question) => question.id === id);
+  const question = topicFor(session.topicVersion, legacyLocale(locale)).questions.find((question) => question.id === id);
   if (!question) throw new Error("unknown-question");
   return question.text;
+}
+
+export function questionForAnswer(session: LearningSession, answer: Answer): string {
+  return questionFor(session, answer.questionId, answer.questionLocale);
+}
+
+export function questionLocaleFor(session: LearningSession, id: string, locale?: Locale): Locale {
+  if (id.startsWith("tutor:")) {
+    const feedback = uniqueFeedback(session, id.slice(6));
+    if (!feedback.output.question?.trim()) throw new Error("question-required");
+    return legacyLocale(feedback.responseLocale);
+  }
+  questionFor(session, id, locale);
+  return legacyLocale(locale);
 }
 
 function move(session: LearningSession, direction: 1 | -1): LearningSession {
@@ -86,7 +101,7 @@ function confirm(session: LearningSession, answer: Answer): LearningSession {
   }
   const revision = history.reduce((max, old) => Math.max(max, old.revision), 0) + 1;
   if (answer.revision !== revision) throw new Error("answer-revision-conflict");
-  questionFor(session, answer.questionId);
+  questionForAnswer(session, answer);
   if (answer.questionId.startsWith("tutor:")) {
     const feedback = uniqueFeedback(session, answer.questionId.slice(6));
     if (session.step !== "clarify" || feedback.output.nextAction !== "ask") throw new Error("clarification-required");

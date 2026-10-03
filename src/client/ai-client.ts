@@ -1,11 +1,13 @@
 import type { LearningSession } from "../domain/contracts";
 import type { TutorResult } from "../tutor/service";
+import { legacyLocale, tutorMessage, type Locale } from "../domain/locale";
 
 export type TutorRequest = { requestId: string; signal: AbortSignal };
 
 export type PostTutorInput = {
   sendConsent: true;
   includeNotes?: boolean;
+  locale?: Locale;
   guard: TutorRequestGuard;
   fetchImpl?: typeof fetch;
 };
@@ -23,10 +25,6 @@ export type PostTutorOutcome =
   | { status: "conflict"; question: string }
   | { status: "consent"; question: string }
   | { status: "error"; question: string };
-
-const QUOTA_QUESTION = "今日教学次数已用完。额度按 UTC 日期计算，每天最多 30 次教学、10 次转写（转写尚未接通）。";
-const BUSY_QUESTION = "教学服务正忙，请稍后重试。这次没有判断对错。";
-const UNAVAILABLE_QUESTION = "AI 暂不可用。你可以继续实验或保留回答后重试。";
 
 /** Call invalidate for input, snapshot, step, or clarification-round changes. */
 export class TutorRequestGuard {
@@ -57,10 +55,13 @@ export class TutorRequestGuard {
 
 function isTutorResult(value: unknown): value is TutorResult {
   if (value === null || typeof value !== "object") return false;
-  const result = value as { status?: unknown; output?: unknown; model?: unknown; promptVersion?: unknown; reason?: unknown; question?: unknown };
+  const result = value as { status?: unknown; output?: unknown; model?: unknown; promptVersion?: unknown; reason?: unknown;
+    question?: unknown; evidenceLocale?: unknown; responseLocale?: unknown };
   if (result.status === "ok") {
     return result.output !== null && typeof result.output === "object"
-      && typeof result.model === "string" && typeof result.promptVersion === "string";
+      && typeof result.model === "string" && typeof result.promptVersion === "string"
+      && (result.evidenceLocale === undefined || result.evidenceLocale === "en" || result.evidenceLocale === "zh-CN")
+      && (result.responseLocale === undefined || result.responseLocale === "en" || result.responseLocale === "zh-CN");
   }
   return result.status === "unavailable" && typeof result.reason === "string" && typeof result.question === "string";
 }
@@ -77,26 +78,27 @@ function errorCode(value: unknown): string | undefined {
   return typeof error === "string" ? error : undefined;
 }
 
-function httpOutcome(status: number, body: unknown): PostTutorOutcome | null {
+function httpOutcome(status: number, body: unknown, locale: Locale): PostTutorOutcome | null {
   const code = errorCode(body);
   if (status === 400 && code === "consent-required") {
-    return { status: "consent", question: "发送给 AI 需要明确同意。这次没有调用模型。" };
+    return { status: "consent", question: tutorMessage("consent", locale) };
   }
   if (status === 400) {
-    return { status: "error", question: "这次请求格式无效，没有调用模型。" };
+    return { status: "error", question: tutorMessage("invalid-request", locale) };
   }
-  if (status === 401) return { status: "unauthorized", question: "发送给 AI 需要先登录。本机草稿未上传。" };
-  if (status === 403) return { status: "forbidden", question: "当前来源不被允许发送给 AI。" };
-  if (status === 404) return { status: "not-found", question: "找不到这次账号记录。" };
-  if (status === 409) return { status: "conflict", question: "相同请求已处理，没有重复发送。" };
+  if (status === 401) return { status: "unauthorized", question: tutorMessage("unauthorized", locale) };
+  if (status === 403) return { status: "forbidden", question: tutorMessage("forbidden", locale) };
+  if (status === 404) return { status: "not-found", question: tutorMessage("not-found", locale) };
+  if (status === 409) return { status: "conflict", question: tutorMessage("conflict", locale) };
   if (status === 410) return { status: "deleted" };
-  if (status === 413) return { status: "error", question: "这次请求太大，没有调用模型。" };
-  if (status === 429) return { status: "quota", question: QUOTA_QUESTION };
-  if (status === 503) return { status: "unavailable", reason: "busy", question: BUSY_QUESTION };
+  if (status === 413) return { status: "error", question: tutorMessage("too-large", locale) };
+  if (status === 429) return { status: "quota", question: tutorMessage("quota", locale) };
+  if (status === 503) return { status: "unavailable", reason: "busy", question: tutorMessage("busy", locale) };
   return null;
 }
 
 export async function postTutor(session: LearningSession, input: PostTutorInput): Promise<PostTutorOutcome | null> {
+  const locale = legacyLocale(input.locale);
   const token = input.guard.start(session.contentRevision);
   if (!token) return null;
   const includeNotes = input.includeNotes === true;
@@ -106,6 +108,7 @@ export async function postTutor(session: LearningSession, input: PostTutorInput)
     session: includeNotes ? session : { ...session, notes: "" },
     includeNotes,
     sendConsent: true as const,
+    ...(input.locale === undefined ? {} : { locale: input.locale }),
   };
   try {
     const response = await fetchImpl("/api/tutor", {
@@ -120,23 +123,28 @@ export async function postTutor(session: LearningSession, input: PostTutorInput)
     }
     let parsed: unknown = null;
     try { parsed = await response.json(); } catch { parsed = null; }
-    const mapped = httpOutcome(response.status, parsed);
+    const mapped = httpOutcome(response.status, parsed, locale);
     if (mapped) return mapped;
     if (response.status !== 200) {
-      return { status: "error", question: UNAVAILABLE_QUESTION };
+      return { status: "error", question: tutorMessage("unavailable", locale) };
     }
     if (!isTutorResponse(parsed) || parsed.requestId !== token.requestId) {
-      return { status: "unavailable", reason: "invalid-output", question: "AI 反馈未通过检查。请保留当前回答，稍后重试。" };
+      return { status: "unavailable", reason: "invalid-output", question: tutorMessage("invalid-output", locale) };
     }
     if (!input.guard.accept(token.requestId, session.contentRevision) || parsed.contentRevision !== session.contentRevision) {
       return { status: "stale" };
+    }
+    if (parsed.result.status === "ok" && (parsed.result.evidenceLocale !== undefined && parsed.result.evidenceLocale !== locale
+      || parsed.result.responseLocale !== undefined && parsed.result.responseLocale !== locale
+      || locale === "en" && (parsed.result.evidenceLocale !== "en" || parsed.result.responseLocale !== "en"))) {
+      return { status: "unavailable", reason: "invalid-output", question: tutorMessage("invalid-output", locale) };
     }
     return { status: "accepted", requestId: parsed.requestId, contentRevision: parsed.contentRevision, result: parsed.result };
   } catch (error) {
     if (token.signal.aborted || (error instanceof DOMException && error.name === "AbortError") || (error instanceof Error && error.name === "AbortError")) {
       return { status: "aborted" };
     }
-    return { status: "unavailable", reason: "provider", question: UNAVAILABLE_QUESTION };
+    return { status: "unavailable", reason: "provider", question: tutorMessage("unavailable", locale) };
   } finally {
     input.guard.finish(token.requestId);
   }

@@ -35,8 +35,9 @@ function usageCount(db: Database.Database, ownerId: string, kind = "tutor") {
     .get(ownerId, kind) as { n: number }).n;
 }
 
-function tutorBody(requestId: string, session: LearningSession, extra: { includeNotes?: boolean } = {}) {
-  return { requestId, session, includeNotes: extra.includeNotes ?? false, sendConsent: true as const };
+function tutorBody(requestId: string, session: LearningSession, extra: { includeNotes?: boolean; locale?: string } = {}) {
+  return { requestId, session, includeNotes: extra.includeNotes ?? false, sendConsent: true as const,
+    ...(extra.locale === undefined ? {} : { locale: extra.locale }) };
 }
 
 test("没有发送同意不能消费模型调用", async () => {
@@ -88,9 +89,43 @@ test("consented tutor returns server model metadata and allows ephemeral local i
   expect(response.status).toBe(200);
   expect(response.body).toEqual({
     requestId: "r-ok", contentRevision: 0,
-    result: { status: "ok", output: valid, model: "test-fake", promptVersion: "overfitting-tutor-v1" },
+    result: { status: "ok", output: valid, model: "test-fake", promptVersion: "overfitting-tutor-v2",
+      evidenceLocale: "zh-CN", responseLocale: "zh-CN" },
   });
   expect(response.body.result.model).not.toBe("gpt-evil");
+});
+
+test("English tutor request uses English evidence while retaining original Chinese history", async () => {
+  const deps = await setup("alice");
+  const answerText = "训练误差不是全部";
+  const generate = vi.fn().mockResolvedValue({ ...valid, claim: "Training fit is not enough", reason: "Consider unseen data",
+    question: "What does the validation set show?", quotes: [{ answerId: "a", answerRevision: 1, start: 0, end: answerText.length, text: answerText }] });
+  deps.tutorProvider = { model: "test-fake", generate };
+  const session = { ...newSession("s1"), answers: [{ id: "a", revision: 1, step: "explain" as const,
+    questionId: "explain-1", text: answerText, confirmedAt: "2026-10-01" }] };
+  const response = await post(createApp(deps), deps.publicOrigin, tutorBody("en-1", session, { locale: "en" }));
+  expect(response.status).toBe(200);
+  expect(response.body.result).toMatchObject({ status: "ok", promptVersion: "overfitting-tutor-v2",
+    evidenceLocale: "en", responseLocale: "en", output: { quotes: [{ text: answerText }] } });
+  const prompt = generate.mock.calls[0][0] as { system: string; data: string };
+  const data = JSON.parse(prompt.data);
+  expect(data.topic.title).toBe("Why low training error does not guarantee better performance");
+  expect(data.answers[0].question).toBe("你怎样解释训练误差很低，但新数据上表现不好？");
+  expect(prompt.system).toContain("UTF-16");
+  expect(prompt.system).toContain("untrusted-personal-note");
+});
+
+test("invalid locale is rejected before provider use and locale is part of explicit request identity", async () => {
+  const deps = await setup("alice");
+  const generate = vi.fn().mockResolvedValue(valid);
+  deps.tutorProvider = { model: "test-fake", generate };
+  const app = createApp(deps), session = newSession("s1");
+  expect((await post(app, deps.publicOrigin, tutorBody("bad", session, { locale: "fr" }))).status).toBe(400);
+  expect(generate).not.toHaveBeenCalled();
+  expect((await post(app, deps.publicOrigin, tutorBody("same", session))).status).toBe(200);
+  expect((await post(app, deps.publicOrigin, tutorBody("same", session, { locale: "en" }))).body)
+    .toEqual({ error: "already-used" });
+  expect(generate).toHaveBeenCalledTimes(1);
 });
 
 test("31st tutor reserve in one UTC day is 429 and generate is called at most 30 times", async () => {
