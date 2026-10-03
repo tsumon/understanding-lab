@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { newSession, SessionSchema, type Answer, type ExperimentConfig, type LearningSession, type Snapshot, type StoredFeedback } from "../domain/contracts";
-import { currentAnswer, feedbackViews, questionFor, transition } from "../domain/session";
+import { currentAnswer, feedbackViews, questionFor, questionLocaleFor, transition } from "../domain/session";
 import { parsePack, type ExperimentPack } from "../experiment/catalog";
 import { transitionExperiment, type Exploration } from "../experiment/exploration";
 import { clearConflict, clearOwnerCache, deleteDraft, rawDraftForExport, readConflict, readEnvelope, writeConflict, writeEnvelope, type CloudBinding, type ConflictCopy, type DraftEnvelope, type DraftSlot, type PendingSave } from "./local-store";
@@ -13,11 +13,10 @@ import { ExperimentPanel } from "./ExperimentPanel";
 import { SummaryPanel, stepLabels, STEPS } from "./SummaryPanel";
 import { OfflineStatus } from "./OfflineStatus";
 import { FeedbackPanel } from "./FeedbackPanel";
-import topicJson from "../../content/overfitting.v1.json";
-import { TopicSchema } from "../domain/contracts";
+import { topicFor } from "../content/topics";
+import { useLocale } from "./LocaleProvider";
 import "./styles.css";
 
-const topic = TopicSchema.parse(topicJson);
 const draftId = "current";
 const saved = readEnvelope(draftId);
 const damaged = saved ? null : rawDraftForExport(draftId);
@@ -25,14 +24,6 @@ const savedConflict = readConflict(draftId);
 const initialExploration: Exploration = { config: { seed: 17, n: 40, noise: 0.1, degree: 3 }, frozen: null, revealed: false, contaminated: false };
 type View = "material" | "experiment" | "explanation";
 type SyncState = "local" | "syncing" | "synced" | "conflict" | "offline" | "deleted";
-const syncLabels: Record<SyncState, string> = {
-  local: "仅本机",
-  syncing: "正在保存到账号",
-  synced: "已同步到账号",
-  conflict: "与账号中的版本冲突",
-  offline: "账号暂时不可用",
-  deleted: "账号中的记录已删除",
-};
 
 function slotFor(session: LearningSession): DraftSlot | null {
   if (session.step === "clarify") return `clarify-${session.clarificationRound}`;
@@ -48,6 +39,7 @@ function download(name: string, content: string, type: string) {
 }
 
 export function App() {
+  const { locale, setLocale, copy } = useLocale();
   const [started, setStarted] = useState(Boolean(saved));
   const [session, setSession] = useState<LearningSession>(saved?.session ?? newSession(draftId));
   const [exploration, setExploration] = useState<Exploration>(saved?.exploration ?? initialExploration);
@@ -82,7 +74,7 @@ export function App() {
     fetch("/experiments/overfitting.v1.json").then((response) => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();
-    }).then((data) => setPack(parsePack(data))).catch((error: unknown) => setPackError(error instanceof Error ? error.message : "未知错误"));
+    }).then((data) => setPack(parsePack(data))).catch((error: unknown) => setPackError(error instanceof Error ? error.message : "unknown"));
   }, []);
 
   const envelopeOf = (nextSession = session, nextDrafts = drafts, nextText = text, nextBinding = binding, nextAutoSave = autoSave, nextPending = pendingSave): DraftEnvelope => ({
@@ -92,7 +84,7 @@ export function App() {
 
   const persist = (envelope: DraftEnvelope, owner = persistOwner()) => {
     const result = writeEnvelope(draftId, envelope, owner);
-    setSaveError(result.ok ? null : result.reason === "storage-full" ? "存储空间已满" : "本机存储不可用");
+    setSaveError(result.ok ? null : result.reason ?? "storage-unavailable");
     return result;
   };
 
@@ -163,17 +155,17 @@ export function App() {
     if (started && corruptRaw === null) persist(envelopeOf(session, nextDrafts, value));
   };
   const confirm = () => {
-    if (!text.trim()) { setActionError("请先写下解释，或选择跳过。"); return; }
+    if (!text.trim()) { setActionError("empty-answer"); return; }
     const existing = currentAnswer(session);
     const answer: Answer = {
       id: existing?.id ?? `${session.id}:${session.step}:${session.step === "clarify" ? session.clarificationRound : 1}`,
       revision: (existing?.revision ?? 0) + 1, step: session.step,
       questionId: existing?.questionId ?? `${session.step}-${session.step === "clarify" ? session.clarificationRound : 1}`,
       ...(session.step === "clarify" ? { clarificationRound: session.clarificationRound } : {}),
-      text, confirmedAt: new Date().toISOString(),
+      text, questionLocale: questionLocaleFor(session, existing?.questionId ?? `${session.step}-${session.step === "clarify" ? session.clarificationRound : 1}`, locale), confirmedAt: new Date().toISOString(),
     };
     try { setSession(transition(session, { type: "confirm", answer })); setActionError(null); }
-    catch (error) { setActionError(error instanceof Error ? error.message : "确认失败"); }
+    catch (error) { setActionError(error instanceof Error ? error.message : "confirm-failed"); }
   };
   const navigate = (type: "continue" | "back" | "skip" | "start-experiment") => {
     try {
@@ -181,17 +173,17 @@ export function App() {
       const slot = slotFor(next);
       persist(envelopeOf(next, drafts, slot ? drafts[slot] ?? currentAnswer(next)?.text ?? "" : ""));
       moveTo(next);
-    } catch (error) { setActionError(error instanceof Error ? error.message : "无法继续"); }
+    } catch (error) { setActionError(error instanceof Error ? error.message : "continue-failed"); }
   };
   const record = () => {
-    if (session.step !== "experiment") { setActionError("进入实验步骤后才能记录观察。"); return; }
+    if (session.step !== "experiment") { setActionError("snapshot-step"); return; }
     const snapshot: Snapshot = {
       id: crypto.randomUUID(), packVersion: "overfitting.v1", config: { ...exploration.config },
       prediction: [...session.answers].reverse().find((answer) => answer.step === "predict")?.text ?? "",
       testRevealed: exploration.revealed, testContaminated: exploration.contaminated,
     };
     try { setSession(transition(session, { type: "snapshot", snapshot })); setActionError(null); }
-    catch (error) { setActionError(error instanceof Error ? error.message : "记录失败"); }
+    catch (error) { setActionError(error instanceof Error ? error.message : "snapshot-failed"); }
   };
   const pushToAccount = async () => {
     if (syncing.current || corruptRaw !== null || syncState === "deleted") return;
@@ -200,12 +192,12 @@ export function App() {
     if (!user) {
       syncing.current = false;
       setSyncState("offline");
-      setActionError("当前没有登录会话，本机草稿未上传。");
+      setActionError("no-login-session");
       return;
     }
     if (binding && binding.ownerId !== user.id) {
       syncing.current = false;
-      setActionError("当前登录账号与这份云端绑定不一致。");
+      setActionError("wrong-account");
       return;
     }
     lastUser.current = user.id;
@@ -325,14 +317,14 @@ export function App() {
       lastUser.current = null;
     } else restoreAnonymous();
     try { await signOut(); }
-    catch { setActionError("退出登录未完成，本机账号缓存已清除。匿名草稿仍保留。"); }
+    catch { setActionError("logout-failed"); }
   };
   const handleLogin = async () => {
     setActionError(null);
     const user = await getSignedInUser().catch(() => null);
     if (user) { await identifyUser(user); return; }
     try { await signInWithGitHub(); }
-    catch { setActionError("登录暂时不可用。本机草稿未上传。"); }
+    catch { setActionError("login-unavailable"); }
   };
   const handleSignOut = async () => {
     if (unsyncedAccountWork()) { setSignOutPrompt(true); return; }
@@ -354,12 +346,12 @@ export function App() {
     if (!user) {
       tutorBusyRef.current = false;
       setTutorBusy(false);
-      setActionError("发送给 AI 需要先登录。本机草稿未上传，也没有调用模型。");
+      setActionError("tutor-login");
       return;
     }
     setUserId(user.id);
     lastUser.current = user.id;
-    const outcome = await postTutor(session, { sendConsent: true, includeNotes, guard: tutorGuard.current });
+    const outcome = await postTutor(session, { sendConsent: true, includeNotes, locale, guard: tutorGuard.current });
     tutorBusyRef.current = false;
     setTutorBusy(false);
     if (outcome === null) return;
@@ -370,6 +362,8 @@ export function App() {
         output: outcome.result.output,
         model: outcome.result.model,
         promptVersion: outcome.result.promptVersion,
+        ...(outcome.result.evidenceLocale ? { evidenceLocale: outcome.result.evidenceLocale } : {}),
+        ...(outcome.result.responseLocale ? { responseLocale: outcome.result.responseLocale } : {}),
         createdAt: new Date().toISOString(),
       };
       setSession((current) => {
@@ -398,85 +392,100 @@ export function App() {
   };
   const activeSlot = slotFor(session);
   const current = currentAnswer(session);
-  const question = activeSlot ? questionFor(session, current?.questionId ?? `${session.step}-${session.step === "clarify" ? session.clarificationRound : 1}`) : "";
+  const question = activeSlot ? questionFor(session, current?.questionId ?? `${session.step}-${session.step === "clarify" ? session.clarificationRound : 1}`, current?.questionLocale ?? locale) : "";
   const staleFeedback = feedbackViews(session).filter((entry) => entry.stale);
   const activeFeedback = feedbackViews(session).filter((entry) => !entry.stale);
   const openQuote = (answer: Answer) => { setQuotedAnswer(answer); setView("explanation"); };
   const disagree = (feedbackId: string, reason: string) => {
     try { setSession(transition(session, { type: "disagree", feedbackId, reason, createdAt: new Date().toISOString() })); setActionError(null); }
-    catch (error) { setActionError(error instanceof Error ? error.message : "无法记录异议"); }
+    catch (error) { setActionError(error instanceof Error ? error.message : "disagree-failed"); }
   };
 
+  const actionMessage = (code: string) => ({
+    "empty-answer": copy.emptyAnswer, "confirm-failed": copy.confirmFailed, "continue-failed": copy.continueFailed,
+    "snapshot-step": copy.snapshotStep, "snapshot-failed": copy.snapshotFailed, "no-login-session": copy.noLoginSession,
+    "wrong-account": copy.wrongAccount, "logout-failed": copy.logoutFailed, "login-unavailable": copy.loginUnavailable,
+    "tutor-login": copy.tutorLogin, "disagree-failed": copy.disagreeFailed,
+    "snapshot-required": copy.experimentInstruction, "confirmation-required": copy.emptyAnswer,
+    "disagreement-reason-required": copy.disagreementReason,
+  } as Record<string, string>)[code] ?? (code.includes("-") ? copy.continueFailed : code);
+  const storageMessage = saveError === "storage-full" ? copy.storageFull : copy.storageUnavailable;
+
   return <>
-    <a className="skip-link" href="#main-content">跳到主要内容</a>
+    <a className="skip-link" href="#main-content">{copy.skipLink}</a>
     <main id="main-content" className="app-shell" tabIndex={-1}>
     <header className="page-header">
       <div className="page-header-top">
         <div>
-          <p className="eyebrow">理解实验室 · 过拟合</p>
-          <h1>为什么训练误差低，不代表效果好</h1>
+          <p className="eyebrow">{copy.eyebrow}</p>
+          <h1>{topicFor(session.topicVersion, locale).title}</h1>
         </div>
         <div className="account-bar">
+          <label className="locale-control">Language / 语言
+            <select aria-label="Language / 语言" value={locale} onChange={(event) => setLocale(event.target.value as typeof locale)}>
+              <option value="en">English</option><option value="zh-CN">简体中文</option>
+            </select>
+          </label>
           {userId
             ? <>
-                <p className="hint">当前账号 {userId}</p>
-                <button type="button" className="secondary" onClick={() => void handleSignOut()}>退出登录</button>
+                <p className="hint">{copy.currentAccount(userId)}</p>
+                <button type="button" className="secondary" onClick={() => void handleSignOut()}>{copy.logout}</button>
               </>
-            : <button type="button" className="secondary" onClick={() => void handleLogin()}>登录</button>}
+            : <button type="button" className="secondary" onClick={() => void handleLogin()}>{copy.login}</button>}
         </div>
       </div>
-      <p>阅读证据、写下解释，再用真实数值观察变化。离线引导，不是 AI 评价。</p>
+      <p>{copy.tagline}</p>
       <OfflineStatus />
-      <p className="sync-status" data-state={syncState} aria-live="polite">{syncLabels[syncState]}</p>
+      <p className="sync-status" data-state={syncState} aria-live="polite">{copy[syncState]}</p>
     </header>
 
     {corruptRaw !== null && <section className="card warning-card" role="alert">
-      <h2>本机草稿损坏</h2><p>原始内容仍保留在浏览器中。可以先导出，再决定是否丢弃并开始新尝试。</p>
+      <h2>{copy.corruptTitle}</h2><p>{copy.corruptBody}</p>
       <div className="actions">
-        <button type="button" onClick={() => download("understanding-lab-corrupt-draft.txt", corruptRaw, "text/plain")}>导出损坏草稿</button>
-        <button type="button" onClick={() => { deleteDraft(draftId); setCorruptRaw(null); begin(); }}>丢弃损坏草稿并开始</button>
+        <button type="button" onClick={() => download("understanding-lab-corrupt-draft.txt", corruptRaw, "text/plain")}>{copy.exportCorrupt}</button>
+        <button type="button" onClick={() => { deleteDraft(draftId); setCorruptRaw(null); begin(); }}>{copy.discardCorrupt}</button>
       </div>
     </section>}
 
     {conflict && <section className="card warning-card" role="alert">
-      <h2>与账号中的版本冲突</h2>
-      <p>本机完整草稿仍保留，没有自动覆盖。账号反馈若来自本机恢复，不能当作模型调用证明。可先导出本机副本，再决定载入账号版本，或另存为新尝试。</p>
+      <h2>{copy.conflictTitle}</h2>
+      <p>{copy.conflictBody}</p>
       <div className="actions">
-        <button type="button" onClick={exportCurrent}>导出本机副本</button>
-        <button type="button" onClick={loadCloudVersion}>载入账号版本</button>
-        <button type="button" className="secondary" onClick={saveAsNewAttempt}>另存为新尝试</button>
+        <button type="button" onClick={exportCurrent}>{copy.exportLocal}</button>
+        <button type="button" onClick={loadCloudVersion}>{copy.loadCloud}</button>
+        <button type="button" className="secondary" onClick={saveAsNewAttempt}>{copy.saveNew}</button>
       </div>
     </section>}
 
     {signOutPrompt && <section className="card warning-card" role="alert">
-      <h2>还有未同步的账号内容</h2>
-      <p>退出会清除这个账号在这台设备上的私人缓存和待同步队列，匿名试玩草稿会保留。远程删除也不会立刻擦掉离线副本。请先导出，未经确认不会丢弃仍在内存里的匿名草稿。</p>
+      <h2>{copy.signOutTitle}</h2>
+      <p>{copy.signOutBody}</p>
       <div className="actions">
-        <button type="button" onClick={exportCurrent}>导出未同步内容</button>
-        <button type="button" onClick={() => void finishSignOut()}>仍要退出</button>
-        <button type="button" className="secondary" onClick={() => setSignOutPrompt(false)}>取消</button>
+        <button type="button" onClick={exportCurrent}>{copy.exportUnsynced}</button>
+        <button type="button" onClick={() => void finishSignOut()}>{copy.signOutAnyway}</button>
+        <button type="button" className="secondary" onClick={() => setSignOutPrompt(false)}>{copy.cancel}</button>
       </div>
     </section>}
 
     {syncState === "deleted" && <section className="card warning-card" role="alert">
-      <h2>账号记录已删除</h2>
-      <p>本机草稿仍在。远程删除不会立刻擦掉这台设备上的离线副本。不能用旧编号复活已删除的记录。可以清除本机副本，或另存为新尝试后再保存。</p>
+      <h2>{copy.deletedTitle}</h2>
+      <p>{copy.deletedBody}</p>
       <div className="actions">
-        <button type="button" onClick={clearDeletedLocal}>清除本机副本</button>
-        <button type="button" className="secondary" onClick={saveAsNewAttempt}>另存为新尝试</button>
+        <button type="button" onClick={clearDeletedLocal}>{copy.clearLocal}</button>
+        <button type="button" className="secondary" onClick={saveAsNewAttempt}>{copy.saveNew}</button>
       </div>
     </section>}
 
-    {!started && corruptRaw === null && <section className="card intro"><h2>开始一次本机学习</h2>
-      <p>回答和笔记保存在这台设备的浏览器中。你可以随时导出；不会自动上传到账号。</p>
-      <button type="button" onClick={begin}>开始学习</button></section>}
+    {!started && corruptRaw === null && <section className="card intro"><h2>{copy.introTitle}</h2>
+      <p>{copy.introBody}</p>
+      <button type="button" onClick={begin}>{copy.start}</button></section>}
 
     {started && <>
-      <nav className="step-nav" aria-label="学习进度" tabIndex={0}><ol>{STEPS.map((step, index) => <li key={step} aria-current={session.step === step ? "step" : undefined}>{index + 1}. {stepLabels[step]}</li>)}</ol></nav>
-      <div className="mobile-tabs" role="group" aria-label="工作区视图">
-        <button type="button" aria-pressed={view === "material"} onClick={() => setView("material")}>材料</button>
-        <button type="button" aria-pressed={view === "experiment"} onClick={() => setView("experiment")}>实验</button>
-        <button type="button" aria-pressed={view === "explanation"} onClick={() => setView("explanation")}>讲解</button>
+      <nav className="step-nav" aria-label={copy.progress} tabIndex={0}><ol>{STEPS.map((step, index) => <li key={step} aria-current={session.step === step ? "step" : undefined}>{index + 1}. {copy.steps[step]}</li>)}</ol></nav>
+      <div className="mobile-tabs" role="group" aria-label={copy.workspace}>
+        <button type="button" aria-pressed={view === "material"} onClick={() => setView("material")}>{copy.materialTab}</button>
+        <button type="button" aria-pressed={view === "experiment"} onClick={() => setView("experiment")}>{copy.experimentTab}</button>
+        <button type="button" aria-pressed={view === "explanation"} onClick={() => setView("explanation")}>{copy.explanationTab}</button>
       </div>
       <div className="workspace">
         <div className={`workspace-primary view-${view}`}>
@@ -487,69 +496,69 @@ export function App() {
             onReveal={() => setExploration((state) => transitionExperiment(state, { type: "reveal" }))} onRecord={record} /></div>
         </div>
         <div className={`workspace-secondary view-${view}`}>
-          {quotedAnswer && <section id="quoted-answer" tabIndex={-1} className="card quote-detail" aria-label="引用的回答版本">
-            <h2>第 {quotedAnswer.revision} 版回答</h2>
-            <p className="hint">{stepLabels[quotedAnswer.step]} · 已确认的历史文字</p>
-            <p className="preserve-breaks">{quotedAnswer.text}</p>
-            <button type="button" className="secondary" onClick={() => setQuotedAnswer(null)}>关闭引用</button>
+          {quotedAnswer && <section id="quoted-answer" tabIndex={-1} className="card quote-detail" aria-label={copy.quoteDetail}>
+            <h2>{copy.answerRevision(quotedAnswer.revision)}</h2>
+            <p className="hint">{copy.steps[quotedAnswer.step]} · {copy.confirmedHistory}</p>
+            <p className="preserve-breaks" lang={quotedAnswer.questionLocale ?? "zh-CN"}>{quotedAnswer.text}</p>
+            <button type="button" className="secondary" onClick={() => setQuotedAnswer(null)}>{copy.closeQuote}</button>
           </section>}
           {session.step === "summary" ? <SummaryPanel session={session} pack={pack} /> : <section className="card explanation-card" aria-labelledby="answer-title">
-            <p className="eyebrow">{session.step === "clarify" ? `澄清 ${session.clarificationRound} / 2` : stepLabels[session.step]}</p>
-            <h2 id="answer-title">{session.step === "experiment" ? "实验观察" : "我的讲解"}</h2>
+            <p className="eyebrow">{session.step === "clarify" ? copy.clarifyRound(session.clarificationRound) : copy.steps[session.step]}</p>
+            <h2 id="answer-title">{session.step === "experiment" ? copy.experimentObservation : copy.myExplanation}</h2>
             {activeSlot ? <>
-              <p className="question">{question}</p><label htmlFor="answer-text">我的解释</label>
-              <textarea id="answer-text" aria-label="我的解释" rows={8} value={text} onChange={(event) => changeText(event.target.value)} placeholder="用自己的话写下来；未确认的文字只保存在本机草稿中。" />
-              <p className="hint">{[...text].length} / 4000 字；只有按“确认这段解释”后才成为正式回答。</p>
+              <p className="question">{question}</p><label htmlFor="answer-text">{copy.explanationLabel}</label>
+              <textarea id="answer-text" aria-label={copy.explanationLabel} rows={8} value={text} onChange={(event) => changeText(event.target.value)} placeholder={copy.answerPlaceholder} />
+              <p className="hint">{copy.answerCount([...text].length)}</p>
               <Recorder onTranscript={(value) => changeText(value)} />
-              <button type="button" onClick={confirm}>确认这段解释</button>
-              {current && <p className="confirmed">已确认第 {current.revision} 版。可以继续编辑并再次确认。</p>}
-            </> : <p>调整参数观察训练与验证误差，可冻结选择后揭示测试结果。记录至少一次观察再继续。</p>}
+              <button type="button" onClick={confirm}>{copy.confirm}</button>
+              {current && <p className="confirmed">{copy.confirmed(current.revision)}</p>}
+            </> : <p>{copy.experimentInstruction}</p>}
             <div className="actions navigation-actions">
-              {session.step !== "explain" && <button type="button" className="secondary" onClick={() => navigate("back")}>返回上一步</button>}
-              <button type="button" className="secondary" onClick={() => navigate("skip")}>跳过，标记未验证</button>
-              {STEPS.indexOf(session.step) < STEPS.indexOf("experiment") && <button type="button" className="secondary" onClick={() => navigate("start-experiment")}>先做实验</button>}
-              <button type="button" onClick={() => navigate("continue")}>继续下一步</button>
-            </div>{actionError && <p role="alert" className="warning">{actionError}</p>}
+              {session.step !== "explain" && <button type="button" className="secondary" onClick={() => navigate("back")}>{copy.back}</button>}
+              <button type="button" className="secondary" onClick={() => navigate("skip")}>{copy.skip}</button>
+              {STEPS.indexOf(session.step) < STEPS.indexOf("experiment") && <button type="button" className="secondary" onClick={() => navigate("start-experiment")}>{copy.startExperiment}</button>}
+              <button type="button" onClick={() => navigate("continue")}>{copy.continue}</button>
+            </div>{actionError && <p role="alert" className="warning">{actionMessage(actionError)}</p>}
           </section>}
-          <section className="card notes-card"><h2>私人笔记</h2><label htmlFor="notes">我的笔记（最多 8000 字）</label>
+          <section className="card notes-card"><h2>{copy.notesTitle}</h2><label htmlFor="notes">{copy.notesLabel}</label>
             <textarea id="notes" rows={5} value={session.notes} onChange={(event) => {
               if ([...event.target.value].length <= 8000) setSession(transition(session, { type: "set-notes", notes: event.target.value }));
-            }} /><p className="hint">笔记不是确认回答。保存到账号时，笔记会随这次尝试一起上传；默认不会发给模型。</p></section>
-          {activeFeedback.map(({ feedback }) => <FeedbackPanel key={feedback.id} feedback={feedback} session={session} topic={topic} pack={pack}
+            }} /><p className="hint">{copy.notesHint}</p></section>
+          {activeFeedback.map(({ feedback }) => <FeedbackPanel key={feedback.id} feedback={feedback} session={session} topic={topicFor(session.topicVersion, feedback.evidenceLocale ?? "zh-CN")} pack={pack}
             onQuote={openQuote} onDisagree={(reason) => disagree(feedback.id, reason)} />)}
-          {staleFeedback.length > 0 && <details className="card"><summary>过期的历史反馈（{staleFeedback.length}）</summary>
-            <p>这些反馈对应旧的回答或实验版本，不用于当前小结。</p>
-            {staleFeedback.map(({ feedback }) => <FeedbackPanel key={feedback.id} feedback={feedback} session={session} topic={topic} pack={pack}
+          {staleFeedback.length > 0 && <details className="card"><summary>{copy.staleFeedback(staleFeedback.length)}</summary>
+            <p>{copy.staleFeedbackHint}</p>
+            {staleFeedback.map(({ feedback }) => <FeedbackPanel key={feedback.id} feedback={feedback} session={session} topic={topicFor(session.topicVersion, feedback.evidenceLocale ?? "zh-CN")} pack={pack}
               onQuote={openQuote} onDisagree={(reason) => disagree(feedback.id, reason)} />)}
           </details>}
         </div>
       </div>
-      {saveError && <aside className="save-error" role="alert">未保存到本机：{saveError}。当前尝试仍在此页面内存中。<button type="button" onClick={exportCurrent}>导出当前尝试</button></aside>}
-      {!saveError && <p className="save-status">本机草稿自动保存；确认前的文字不会作为回答发送。</p>}
+      {saveError && <aside className="save-error" role="alert">{copy.saveError(storageMessage)}<button type="button" onClick={exportCurrent}>{copy.exportAttempt}</button></aside>}
+      {!saveError && <p className="save-status">{copy.saveStatus}</p>}
       <section className="card">
-        <h2>保存到账号</h2>
-        <p className="hint">登录不会自动上传匿名草稿。只有选择保存到账号后，确认过的学习记录才会上传；未确认的文字仍只在本机。保存到账号不会调用模型。</p>
+        <h2>{copy.saveAccount}</h2>
+        <p className="hint">{copy.saveAccountHint}</p>
         <div className="actions">
-          <button type="button" onClick={() => void pushToAccount()} disabled={syncState === "syncing" || conflict !== null || syncState === "deleted"}>保存到账号</button>
+          <button type="button" onClick={() => void pushToAccount()} disabled={syncState === "syncing" || conflict !== null || syncState === "deleted"}>{copy.saveAccount}</button>
         </div>
         {binding && syncState !== "deleted" && <label htmlFor="auto-save-attempt">
           <input id="auto-save-attempt" type="checkbox" checked={autoSave} onChange={(event) => setAutoSave(event.target.checked)} />
-          之后自动保存这次尝试。只作用于当前这次，不会把其他本机草稿上传。
+          {copy.autoSave}
         </label>}
       </section>
       <section className="card">
-        <h2>发送给 AI</h2>
-        <p className="hint">发送给 AI 需要单独同意，不会自动长期保存到账号。私人笔记默认不发送。额度按 UTC 日期计算，每天最多 30 次教学、10 次转写。发出请求不等于已经成功。</p>
+        <h2>{copy.sendAI}</h2>
+        <p className="hint">{copy.sendAIHint}</p>
         <label htmlFor="include-notes">
           <input id="include-notes" type="checkbox" checked={includeNotes} onChange={(event) => setIncludeNotes(event.target.checked)} />
-          把私人笔记一并发送给模型
+          {copy.includeNotes}
         </label>
         <div className="actions">
-          <button type="button" onClick={() => void sendToTutor()} disabled={tutorBusy}>发送给 AI</button>
+          <button type="button" onClick={() => void sendToTutor()} disabled={tutorBusy}>{copy.sendAI}</button>
         </div>
-        {tutorBusy && <p className="hint" aria-live="polite">正在请求教学反馈…</p>}
+        {tutorBusy && <p className="hint" aria-live="polite">{copy.tutorBusy}</p>}
       </section>
-      {!saveError && <button type="button" className="export-link" onClick={exportCurrent}>导出当前尝试</button>}
+      {!saveError && <button type="button" className="export-link" onClick={exportCurrent}>{copy.exportAttempt}</button>}
     </>}
   </main>
   </>;
