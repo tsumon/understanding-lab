@@ -1,17 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import pack from "../../public/experiments/overfitting.v1.json";
 import { newSession, type LearningSession } from "../../src/domain/contracts";
 import { messages } from "../../src/client/i18n";
 
-const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn(async (): Promise<{ id: string } | null> => null) }));
-vi.mock("../../src/client/auth-client", () => ({
-  getSignedInUser: auth.getSignedInUser,
-  signInWithGitHub: vi.fn(), signOut: vi.fn(),
-}));
-
-afterEach(() => { cleanup(); localStorage.clear(); vi.resetModules(); vi.unstubAllGlobals(); auth.getSignedInUser.mockResolvedValue(null); });
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); localStorage.clear(); vi.resetModules(); vi.unstubAllGlobals(); });
 
 test("switching an open draft changes the interface only and persists across remount", async () => {
   localStorage.setItem("understanding-lab:ui-locale", "zh-CN");
@@ -91,11 +85,12 @@ test("confirmed revisions record the current question language and a switch chan
 
 test("an in-flight English tutor response survives a language switch with original prose and locale provenance", async () => {
   localStorage.setItem("understanding-lab:ui-locale", "en");
-  auth.getSignedInUser.mockResolvedValue({ id: "alice" });
+  let identify: ((response: Response) => void) | undefined;
   let deliver: ((response: Response) => void) | undefined;
   let request: { requestId: string; session: LearningSession; locale: string } | undefined;
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     if (String(input).includes("/experiments/")) return { ok: true, json: async () => pack } as Response;
+    if (String(input).includes("/api/auth/get-session")) return new Promise<Response>((resolve) => { identify = resolve; });
     request = JSON.parse(String(init?.body));
     return new Promise<Response>((resolve) => { deliver = resolve; });
   });
@@ -105,8 +100,11 @@ test("an in-flight English tutor response survives a language switch with origin
   render(<LocaleProvider><App /></LocaleProvider>);
   fireEvent.click(screen.getByRole("button", { name: "Start learning" }));
   fireEvent.click(screen.getByRole("button", { name: "Send to AI" }));
-  await waitFor(() => expect(request?.locale).toBe("en"));
+  await waitFor(() => expect(identify).toBeTypeOf("function"));
   fireEvent.change(screen.getByRole("combobox", { name: "Language / 语言" }), { target: { value: "zh-CN" } });
+  expect(screen.getByText("这次请求仍使用 English，不会因切换语言重新发送。")).toBeTruthy();
+  identify!(Response.json({ user: { id: "alice" }, session: { id: "synthetic-session" } }));
+  await waitFor(() => expect(request?.locale).toBe("en"));
   deliver!(new Response(JSON.stringify({ requestId: request!.requestId, contentRevision: request!.session.contentRevision,
     result: { status: "ok", output: { kind: "supported", claim: "Original English feedback", reason: "Evidence remains original", nextAction: "ask", question: "Why?", quotes: [], sources: [], metrics: [] }, model: "test-model", promptVersion: "overfitting-tutor-v2", evidenceLocale: "en", responseLocale: "en" } }), { status: 200, headers: { "content-type": "application/json" } }));
   await waitFor(() => {
@@ -114,9 +112,63 @@ test("an in-flight English tutor response survives a language switch with origin
     expect(JSON.parse(raw ?? "{}").session?.feedback, screen.queryByRole("alert")?.textContent ?? "no alert").toHaveLength(1);
   });
   expect(await screen.findByText("Original English feedback")).toBeTruthy();
+  expect(screen.getByText("反馈原语言：English；依据材料：English")).toBeTruthy();
   expect(document.documentElement.lang).toBe("zh-CN");
   const saved = JSON.parse(localStorage.getItem("understanding-lab:v1:owner:alice:current")!) as { session: LearningSession };
   expect(saved.session.feedback[0]).toMatchObject({ evidenceLocale: "en", responseLocale: "en" });
   expect(saved.session.feedback[0].output.claim).toBe("Original English feedback");
   expect(fetch.mock.calls.filter((call) => String(call[0]).includes("/api/tutor"))).toHaveLength(1);
+});
+
+test("a language-only switch preserves owner drafts, pending identity, exploration, and consent without saving", async () => {
+  const { prepareSave } = await import("../../src/client/sync");
+  const { writeEnvelope, readEnvelope } = await import("../../src/client/local-store");
+  const binding = { ownerId: "alice", id: "owned-attempt", serverRevision: 4 };
+  const session = { ...newSession(binding.id), notes: "Original private notes" };
+  const pending = prepareSave(session, binding, null, () => "same-retry-key").pending;
+  const config = { seed: 17 as const, n: 40 as const, noise: 0.1 as const, degree: 11 };
+  writeEnvelope("current", { session, binding, pendingSave: pending, autoSave: true,
+    drafts: { explain: "Unsaved original words" }, unconfirmedText: "Unsaved original words",
+    exploration: { config, frozen: config, revealed: true, contaminated: true }, updatedAt: "2026-10-03T00:00:00Z" }, "alice");
+  localStorage.setItem("understanding-lab:ui-locale", "en");
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("/experiments/")) return Response.json(pack);
+    if (String(input).includes("/api/auth/get-session")) return Response.json({ user: { id: "alice" }, session: { id: "synthetic-session" } });
+    throw new Error("Unexpected request");
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { App } = await import("../../src/client/App");
+  const { LocaleProvider } = await import("../../src/client/LocaleProvider");
+  render(<LocaleProvider><App /></LocaleProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+  await screen.findByRole("textbox", { name: "Your explanation" });
+  fireEvent.click(screen.getByRole("checkbox", { name: "Include private notes for the model" }));
+  const raw = localStorage.getItem("understanding-lab:v1:owner:alice:current");
+  const calls = fetch.mock.calls.length;
+  vi.useFakeTimers();
+  fireEvent.change(screen.getByRole("combobox", { name: "Language / 语言" }), { target: { value: "zh-CN" } });
+  expect(screen.getByRole("textbox", { name: "我的解释" })).toHaveProperty("value", "Unsaved original words");
+  expect(screen.getByRole("textbox", { name: "我的笔记（最多 8000 字）" })).toHaveProperty("value", session.notes);
+  expect(screen.getByRole("combobox", { name: "多项式阶数" })).toHaveProperty("value", "11");
+  expect(screen.getByRole("checkbox", { name: "把私人笔记一并发送给模型" })).toHaveProperty("checked", true);
+  expect(localStorage.getItem("understanding-lab:v1:owner:alice:current")).toBe(raw);
+  expect(readEnvelope("current", "alice")?.pendingSave).toEqual(pending);
+  await act(() => vi.advanceTimersByTimeAsync(1000));
+  expect(fetch.mock.calls).toHaveLength(calls);
+});
+
+test("blocked storage still allows an in-memory switch and retained text", async () => {
+  vi.spyOn(navigator, "languages", "get").mockReturnValue(["en-US"]);
+  vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new DOMException("blocked", "SecurityError"); });
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new DOMException("blocked", "SecurityError"); });
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json(pack)));
+  const { App } = await import("../../src/client/App");
+  const { LocaleProvider } = await import("../../src/client/LocaleProvider");
+  render(<LocaleProvider><App /></LocaleProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Start learning" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Your explanation" }), { target: { value: "Still in memory" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Language / 语言" }), { target: { value: "zh-CN" } });
+  expect(document.documentElement.lang).toBe("zh-CN");
+  expect(screen.getByRole("textbox", { name: "我的解释" })).toHaveProperty("value", "Still in memory");
+  expect(screen.getByRole("alert").textContent).toContain("本机存储不可用");
 });

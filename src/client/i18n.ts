@@ -24,6 +24,9 @@ export function saveLocalePreference(locale: Locale): void {
 }
 
 const zh = {
+  colon: "：", comma: "，", semicolon: "；", fullStop: "。",
+  pendingLanguage: (language: string) => `这次请求仍使用 ${language}，不会因切换语言重新发送。`,
+  originalLanguage: (response: string, evidence: string) => `反馈原语言：${response}；依据材料：${evidence}`,
   appName: "理解实验室", eyebrow: "理解实验室 · 过拟合", tagline: "阅读证据、写下解释，再用真实数值观察变化。离线引导，不是 AI 评价。",
   skipLink: "跳到主要内容", login: "登录", logout: "退出登录", currentAccount: (id: string) => `当前账号 ${id}`,
   local: "仅本机", syncing: "正在保存到账号", synced: "已同步到账号", conflict: "与账号中的版本冲突", offline: "账号暂时不可用", deleted: "账号中的记录已删除",
@@ -49,6 +52,9 @@ const zh = {
 export type Messages = typeof zh;
 
 const en: Messages = {
+  colon: ": ", comma: ", ", semicolon: "; ", fullStop: ".",
+  pendingLanguage: (language) => `This request still uses ${language}; switching language will not send it again.`,
+  originalLanguage: (response, evidence) => `Original feedback: ${response}; source material: ${evidence}`,
   appName: "Understanding Lab", eyebrow: "Understanding Lab · Overfitting", tagline: "Read evidence, explain it in your own words, then explore real numbers. This is offline guidance, not an AI assessment.",
   skipLink: "Skip to main content", login: "Sign in", logout: "Sign out", currentAccount: (id) => `Current account ${id}`,
   local: "On this device only", syncing: "Saving to account", synced: "Synced to account", conflict: "Conflict with account version", offline: "Account temporarily unavailable", deleted: "Account record deleted",

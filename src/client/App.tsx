@@ -15,6 +15,7 @@ import { OfflineStatus } from "./OfflineStatus";
 import { FeedbackPanel } from "./FeedbackPanel";
 import { topicFor } from "../content/topics";
 import { useLocale } from "./LocaleProvider";
+import type { Locale } from "../domain/locale";
 import "./styles.css";
 
 const draftId = "current";
@@ -66,6 +67,7 @@ export function App() {
   const [userId, setUserId] = useState<string | null>(null);
   const [includeNotes, setIncludeNotes] = useState(false);
   const [tutorBusy, setTutorBusy] = useState(false);
+  const [tutorLocale, setTutorLocale] = useState<Locale | null>(null);
   const [signOutPrompt, setSignOutPrompt] = useState(false);
 
   const persistOwner = (nextUser = userId) => nextUser || null;
@@ -339,8 +341,10 @@ export function App() {
   };
   const sendToTutor = async () => {
     if (tutorBusyRef.current) return;
+    const requestLocale = locale;
     tutorBusyRef.current = true;
     setTutorBusy(true);
+    setTutorLocale(requestLocale);
     setActionError(null);
     const user = await getSignedInUser().catch(() => null);
     if (!user) {
@@ -351,7 +355,7 @@ export function App() {
     }
     setUserId(user.id);
     lastUser.current = user.id;
-    const outcome = await postTutor(session, { sendConsent: true, includeNotes, locale, guard: tutorGuard.current });
+    const outcome = await postTutor(session, { sendConsent: true, includeNotes, locale: requestLocale, guard: tutorGuard.current });
     tutorBusyRef.current = false;
     setTutorBusy(false);
     if (outcome === null) return;
@@ -557,6 +561,9 @@ export function App() {
           <button type="button" onClick={() => void sendToTutor()} disabled={tutorBusy}>{copy.sendAI}</button>
         </div>
         {tutorBusy && <p className="hint" aria-live="polite">{copy.tutorBusy}</p>}
+        {tutorBusy && tutorLocale && tutorLocale !== locale && <p className="hint" aria-live="polite">
+          {copy.pendingLanguage(tutorLocale === "en" ? "English" : "简体中文")}
+        </p>}
       </section>
       {!saveError && <button type="button" className="export-link" onClick={exportCurrent}>{copy.exportAttempt}</button>}
     </>}

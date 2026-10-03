@@ -57,6 +57,7 @@ a { overflow-wrap: anywhere; color: var(--sea); }
 .warning, .warning-card { color: var(--clay); }
 .account-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 0; }
 .account-bar p { margin: 0; }
+.locale-control { display: grid; gap: 0.25rem; max-width: 100%; }
 .recorder { margin: 0.8rem 0; padding-top: 0.4rem; border-top: 1px solid var(--rule); }
 .sync-status { font-size: 0.9rem; color: var(--ink-mute); margin: 0.35rem 0 0; }
 .sync-status[data-state="conflict"], .sync-status[data-state="deleted"] { color: var(--clay); font-weight: 650; }

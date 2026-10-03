@@ -1,7 +1,7 @@
 import type { Browser } from "@playwright/test";
 
 export async function openSignedPage(browser: Browser, origin: string, userId: string) {
-  const context = await browser.newContext({ serviceWorkers: "block" });
+  const context = await browser.newContext({ serviceWorkers: "block", locale: "zh-CN" });
   const host = new URL(origin).hostname;
   await context.addCookies([{
     name: "ul-test-user", value: userId, domain: host, path: "/",

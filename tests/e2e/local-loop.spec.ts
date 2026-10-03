@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:net";
-import { persistRapidRevisionTrace } from "./helpers/rapid-trace";
+import { installRapidRevisionTrace, persistRapidRevisionTrace } from "./helpers/rapid-trace";
 
 async function freeLocalPort(): Promise<number> {
   const server = createServer();
@@ -104,50 +104,7 @@ test("can skip an unavailable experiment and summarizes the latest confirmed rev
 });
 
 test("rapid revisions keep the latest explanation through skipped stages", async ({ page, isMobile }, testInfo) => {
-  await page.addInitScript(() => {
-    const key = "understanding-lab:v1:anonymous:current";
-    const trace: object[] = [];
-    let dropped = 0;
-    const syntheticText = (value: unknown) => value === "第一版解释" || value === "第二版解释" ? value : value === "" ? "" : "<other>";
-    const answersFrom = (raw: string | null) => {
-      try {
-        const parsed = raw ? JSON.parse(raw) : null;
-        return {
-          draft: syntheticText(parsed?.unconfirmedText),
-          answers: (parsed?.session?.answers ?? []).filter((answer: { step: string }) => answer.step === "explain")
-            .map((answer: { id: string; revision: number; text: string }) => ({ id: answer.id, revision: answer.revision, text: syntheticText(answer.text) })),
-        };
-      } catch { return { draft: "<unreadable>", answers: [] }; }
-    };
-    const record = (kind: string, details: object) => {
-      if (trace.length < 80) trace.push({ at: Math.round(performance.now()), kind, ...details });
-      else dropped += 1;
-    };
-    Object.defineProperty(window, "__rapidRevisionTrace", { value: () => ({ entries: trace, dropped }) });
-    for (const kind of ["input", "change", "compositionstart", "compositionend"]) {
-      document.addEventListener(kind, (event) => {
-        if (event.target instanceof HTMLTextAreaElement) record(kind, { value: syntheticText(event.target.value) });
-      }, true);
-    }
-    document.addEventListener("click", (event) => {
-      const button = event.target instanceof Element ? event.target.closest("button") : null;
-      const label = button?.textContent?.trim();
-      if (!label || !["开始学习", "确认这段解释", "继续下一步", "跳过，标记未验证", "讲解"].includes(label)) return;
-      const textarea = document.querySelector("textarea");
-      let stored: ReturnType<typeof answersFrom>;
-      try { stored = answersFrom(localStorage.getItem(key)); }
-      catch { stored = { draft: "<unreadable>", answers: [] }; }
-      record("click", { label, value: syntheticText(textarea?.value), stored });
-    }, true);
-    const originalSetItem = Storage.prototype.setItem;
-    Storage.prototype.setItem = function(storageKey, value) {
-      const result = originalSetItem.call(this, storageKey, value);
-      try {
-        if (this === localStorage && storageKey === key) record("write", answersFrom(value));
-      } catch { /* Tracing must not alter a successful storage write. */ }
-      return result;
-    };
-  });
+  await installRapidRevisionTrace(page);
 
   try {
     await page.goto("/");
@@ -206,25 +163,39 @@ test("mobile tabs preserve draft and fit a 360px viewport", async ({ page, isMob
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("fast refresh retains notes, experiment settings, and a draft from an earlier step", async ({ page, isMobile }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "开始学习" }).click();
-  await page.getByLabel("我的笔记（最多 8000 字）").fill("只保存在本机的笔记");
-  await page.reload();
-  await expect(page.getByLabel("我的笔记（最多 8000 字）")).toHaveValue("只保存在本机的笔记");
-  await page.getByLabel("我的解释").fill("尚未确认的初始草稿");
-  await page.getByRole("button", { name: "先做实验" }).click();
-  await page.getByLabel("多项式阶数").selectOption("11");
-  await page.reload();
-  if (isMobile) await page.getByRole("button", { name: "实验" }).click();
-  await expect(page.getByLabel("多项式阶数")).toHaveValue("11");
-  if (isMobile) await page.getByRole("button", { name: "讲解" }).click();
-  for (let index = 0; index < 8; index += 1) {
-    if ((await page.locator(".step-nav [aria-current='step']").textContent())?.includes("初始解释")) break;
-    await page.getByRole("button", { name: "返回上一步" }).click();
+test("fast refresh retains notes, experiment settings, and a draft from an earlier step", async ({ page, isMobile }, testInfo) => {
+  await installRapidRevisionTrace(page);
+  try {
+    await page.goto("/");
+    await page.getByRole("button", { name: "开始学习" }).click();
+    await page.getByLabel("我的笔记（最多 8000 字）").fill("只保存在本机的笔记");
+    await page.reload();
+    await expect(page.getByLabel("我的笔记（最多 8000 字）")).toHaveValue("只保存在本机的笔记");
+    await page.getByLabel("我的解释").fill("尚未确认的初始草稿");
+    await page.getByRole("button", { name: "先做实验" }).click();
+    await page.getByLabel("多项式阶数").selectOption("11");
+    await page.reload();
+    if (isMobile) await page.getByRole("button", { name: "实验" }).click();
+    await expect(page.getByLabel("多项式阶数")).toHaveValue("11");
+    if (isMobile) await page.getByRole("button", { name: "讲解" }).click();
+    for (let index = 0; index < 8; index += 1) {
+      if ((await page.locator(".step-nav [aria-current='step']").textContent())?.includes("初始解释")) break;
+      await page.getByRole("button", { name: "返回上一步" }).click();
+    }
+    await expect(page.locator(".step-nav [aria-current='step']")).toContainText("初始解释");
+    await expect(page.getByLabel("我的解释")).toHaveValue("尚未确认的初始草稿");
+    const trace = await page.evaluate(() => (window as Window & {
+      __rapidRevisionTrace?: () => { entries: { kind: string }[]; dropped: number };
+    }).__rapidRevisionTrace?.());
+    expect(trace?.entries.filter((entry) => entry.kind === "load").length).toBe(3);
+    expect(trace!.entries.length).toBeLessThanOrEqual(80);
+  } catch (error) {
+    try {
+      const trace = await page.evaluate(() => (window as Window & { __rapidRevisionTrace?: () => object }).__rapidRevisionTrace?.());
+      await persistRapidRevisionTrace(testInfo, trace);
+    } catch { /* Keep the original failure if the page is unavailable. */ }
+    throw error;
   }
-  await expect(page.locator(".step-nav [aria-current='step']")).toContainText("初始解释");
-  await expect(page.getByLabel("我的解释")).toHaveValue("尚未确认的初始草稿");
 });
 
 test("loads the production document and catalog after its origin is unavailable", async ({ page }) => {
@@ -249,6 +220,14 @@ test("loads the production document and catalog after its origin is unavailable"
     await page.reload();
     await expect(page.getByLabel("我的解释")).toHaveValue("离线仍可编辑");
     await expect(page.getByText("公共材料与实验数据已缓存，可离线使用")).toBeVisible();
+    await page.getByLabel("Language / 语言").selectOption("en");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(page.getByLabel("Your explanation", { exact: true })).toHaveValue("离线仍可编辑");
+    await page.reload();
+    await expect(page.getByLabel("Your explanation", { exact: true })).toHaveValue("离线仍可编辑");
+    await expect(page.getByText("Learning material and experiment data are cached for offline use")).toBeVisible();
+    await page.getByLabel("Language / 语言").selectOption("zh-CN");
+    await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
     await page.getByRole("button", { name: "先做实验" }).click();
     await page.getByLabel("多项式阶数").selectOption("12");
     await expect(page.getByRole("img", { name: /数值图：训练样本/ })).toBeVisible();

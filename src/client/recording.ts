@@ -1,3 +1,6 @@
+import type { Locale } from "../domain/locale";
+import { messages } from "./i18n";
+
 export type TrackBag = { getTracks(): { stop(): void }[] };
 
 export function finishRecording(stream: TrackBag): void {
@@ -71,5 +74,3 @@ async function errorCode(response: Response): Promise<string | undefined> {
       ? (body as { error: string }).error : undefined;
   } catch { return undefined; }
 }
-import type { Locale } from "../domain/locale";
-import { messages } from "./i18n";

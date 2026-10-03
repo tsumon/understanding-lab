@@ -23,6 +23,10 @@ export function FeedbackPanel({ feedback, session, topic, pack, onQuote, onDisag
   return <section className="card feedback-card" aria-label={copy.feedbackTitle}>
     <p className="eyebrow">{feedback.model === RECOVERED_FEEDBACK_MODEL
       ? copy.recoveredFeedback : copy.aiFeedback}</p>
+    <p className="hint">{copy.originalLanguage(
+      feedback.responseLocale === "en" ? "English" : "简体中文",
+      feedback.evidenceLocale === "en" ? "English" : "简体中文",
+    )}</p>
     <h2 lang={feedback.responseLocale ?? "zh-CN"}>{output.claim}</h2>
     <p className="preserve-breaks" lang={feedback.responseLocale ?? "zh-CN"}>{output.reason}</p>
     {output.question && <p className="question">{copy.followup}<span lang={feedback.responseLocale ?? "zh-CN"}>{output.question}</span></p>}
