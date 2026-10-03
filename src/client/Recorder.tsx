@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { finishRecording, pickMime, RECORDING_LIMIT_MS, requestTranscription } from "./recording";
 import { getSignedInUser } from "./auth-client";
+import { useLocale } from "./LocaleProvider";
+import type { Messages } from "./i18n";
 
 type Props = { onTranscript: (text: string) => void; disabled?: boolean };
 
 export function Recorder({ onTranscript, disabled }: Props) {
+  const { locale, copy } = useLocale();
   const [phase, setPhase] = useState<"idle" | "recording" | "recorded" | "uploading">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
@@ -34,18 +37,18 @@ export function Recorder({ onTranscript, disabled }: Props) {
 
   const start = async () => {
     if (disabled || unsupported) return;
-    if (blob.current && !window.confirm("覆盖还未转写的录音？")) return;
+    if (blob.current && !window.confirm(copy.recordingConfirm)) return;
     setMessage(null);
     cleanup();
     const mime = pickMime();
-    if (!mime) { setMessage("这个浏览器不能录音。请用文字继续。"); return; }
+    if (!mime) { setMessage("recordingUnsupported"); return; }
     try {
       const media = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.current = media;
       chunks.current = [];
       const rec = new MediaRecorder(media, { mimeType: mime });
       rec.ondataavailable = (event) => { if (!discarded.current && event.data.size > 0) chunks.current.push(event.data); };
-      rec.onerror = () => { cleanup(); setPhase("idle"); setMessage("录音出错。请用文字继续。"); };
+      rec.onerror = () => { cleanup(); setPhase("idle"); setMessage("recordingError"); };
       rec.onstop = () => {
         if (stream.current) finishRecording(stream.current);
         stream.current = null;
@@ -61,7 +64,7 @@ export function Recorder({ onTranscript, disabled }: Props) {
     } catch {
       cleanup();
       setPhase("idle");
-      setMessage("没有麦克风权限。请用文字继续。");
+      setMessage("micDenied");
     }
   };
 
@@ -70,42 +73,45 @@ export function Recorder({ onTranscript, disabled }: Props) {
     if (timer.current !== null) { window.clearTimeout(timer.current); timer.current = null; }
   };
 
-  const cancel = () => { cleanup(); setPhase("idle"); setMessage("已取消录音。"); };
+  const cancel = () => { cleanup(); setPhase("idle"); setMessage("recordingCanceled"); };
 
   const transcribe = async () => {
     if (!blob.current || phase === "uploading") return;
     const user = await getSignedInUser().catch(() => null);
-    if (!user) { setMessage("转写需要先登录。录音不会自动成为回答。"); return; }
+    if (!user) { setMessage("transcriptionLogin"); return; }
     setPhase("uploading");
-    setMessage("正在转写…");
+    setMessage("transcribing");
     abort.current = new AbortController();
-    const outcome = await requestTranscription(blob.current, crypto.randomUUID(), abort.current.signal);
+    const outcome = await requestTranscription(blob.current, crypto.randomUUID(), abort.current.signal, fetch, locale);
     abort.current = null;
     if (outcome.status === "ok") {
       const text = [...outcome.text].slice(0, 4000).join("");
       onTranscript(text);
       cleanup();
       setPhase("idle");
-      setMessage("转写已填入草稿。请检查文字后点“确认这段解释”，不会自动评价。");
+      setMessage("transcribed");
       return;
     }
     setPhase("recorded");
     setMessage(outcome.question);
   };
 
+  const selected = message && copy[message as keyof Messages];
+  const displayMessage = typeof selected === "string" ? selected : message;
+
   return <div className="recorder">
-    <p className="hint">可选录音：点开始才请求麦克风。最多 60 秒。转写结果只进入可编辑草稿，确认前不会发送给教学模型。</p>
-    {unsupported && <p className="hint">当前环境不支持录音，请用文字作答。</p>}
+    <p className="hint">{copy.recordingHint}</p>
+    {unsupported && <p className="hint">{copy.recordingNotSupported}</p>}
     <div className="actions">
-      {phase !== "recording" && <button type="button" className="secondary" disabled={disabled || unsupported} onClick={() => void start()}>开始录音</button>}
-      {phase === "recording" && <button type="button" onClick={stop}>停止录音</button>}
-      {phase === "recording" && <button type="button" className="secondary" onClick={cancel}>取消</button>}
-      {phase === "recorded" && <button type="button" onClick={() => void transcribe()}>转写这段录音</button>}
-      {phase === "recorded" && <button type="button" className="secondary" onClick={cancel}>丢弃录音</button>}
-      {phase === "uploading" && <button type="button" className="secondary" onClick={() => abort.current?.abort()}>取消转写</button>}
+      {phase !== "recording" && <button type="button" className="secondary" disabled={disabled || unsupported} onClick={() => void start()}>{copy.startRecording}</button>}
+      {phase === "recording" && <button type="button" onClick={stop}>{copy.stopRecording}</button>}
+      {phase === "recording" && <button type="button" className="secondary" onClick={cancel}>{copy.cancel}</button>}
+      {phase === "recorded" && <button type="button" onClick={() => void transcribe()}>{copy.transcribeRecording}</button>}
+      {phase === "recorded" && <button type="button" className="secondary" onClick={cancel}>{copy.discardRecording}</button>}
+      {phase === "uploading" && <button type="button" className="secondary" onClick={() => abort.current?.abort()}>{copy.cancelTranscription}</button>}
     </div>
-    {phase === "recording" && <p className="hint" aria-live="polite">正在录音…</p>}
-    {phase === "uploading" && <p className="hint" aria-live="polite">正在上传并转写…</p>}
-    {message && <p role="status">{message}</p>}
+    {phase === "recording" && <p className="hint" aria-live="polite">{copy.recordingNow}</p>}
+    {phase === "uploading" && <p className="hint" aria-live="polite">{copy.uploadingTranscription}</p>}
+    {message && <p role="status">{displayMessage}</p>}
   </div>;
 }

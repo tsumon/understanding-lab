@@ -10,7 +10,7 @@ import { Recorder } from "./Recorder";
 import { postTutor, TutorRequestGuard } from "./ai-client";
 import { MaterialPanel } from "./MaterialPanel";
 import { ExperimentPanel } from "./ExperimentPanel";
-import { SummaryPanel, stepLabels, STEPS } from "./SummaryPanel";
+import { SummaryPanel, STEPS } from "./SummaryPanel";
 import { OfflineStatus } from "./OfflineStatus";
 import { FeedbackPanel } from "./FeedbackPanel";
 import { topicFor } from "../content/topics";
@@ -375,13 +375,13 @@ export function App() {
       return;
     }
     if (outcome.status === "accepted" && outcome.result.status === "unavailable") {
-      setActionError(outcome.result.question);
+      setActionError(`external:${outcome.result.question}`);
       return;
     }
-    if (outcome.status === "quota") { setActionError(outcome.question); return; }
+    if (outcome.status === "quota") { setActionError(`external:${outcome.question}`); return; }
     if (outcome.status === "unavailable" || outcome.status === "unauthorized" || outcome.status === "forbidden"
       || outcome.status === "not-found" || outcome.status === "conflict" || outcome.status === "consent" || outcome.status === "error") {
-      setActionError(outcome.question);
+      setActionError(`external:${outcome.question}`);
       return;
     }
     if (outcome.status === "deleted") {
@@ -392,7 +392,7 @@ export function App() {
   };
   const activeSlot = slotFor(session);
   const current = currentAnswer(session);
-  const question = activeSlot ? questionFor(session, current?.questionId ?? `${session.step}-${session.step === "clarify" ? session.clarificationRound : 1}`, current?.questionLocale ?? locale) : "";
+  const question = activeSlot ? questionFor(session, current?.questionId ?? `${session.step}-${session.step === "clarify" ? session.clarificationRound : 1}`, locale) : "";
   const staleFeedback = feedbackViews(session).filter((entry) => entry.stale);
   const activeFeedback = feedbackViews(session).filter((entry) => !entry.stale);
   const openQuote = (answer: Answer) => { setQuotedAnswer(answer); setView("explanation"); };
@@ -408,7 +408,7 @@ export function App() {
     "tutor-login": copy.tutorLogin, "disagree-failed": copy.disagreeFailed,
     "snapshot-required": copy.experimentInstruction, "confirmation-required": copy.emptyAnswer,
     "disagreement-reason-required": copy.disagreementReason,
-  } as Record<string, string>)[code] ?? (code.includes("-") ? copy.continueFailed : code);
+  } as Record<string, string>)[code] ?? (code.startsWith("external:") ? code.slice(9) : copy.continueFailed);
   const storageMessage = saveError === "storage-full" ? copy.storageFull : copy.storageUnavailable;
 
   return <>
@@ -499,7 +499,7 @@ export function App() {
           {quotedAnswer && <section id="quoted-answer" tabIndex={-1} className="card quote-detail" aria-label={copy.quoteDetail}>
             <h2>{copy.answerRevision(quotedAnswer.revision)}</h2>
             <p className="hint">{copy.steps[quotedAnswer.step]} · {copy.confirmedHistory}</p>
-            <p className="preserve-breaks" lang={quotedAnswer.questionLocale ?? "zh-CN"}>{quotedAnswer.text}</p>
+            <p className="preserve-breaks">{quotedAnswer.text}</p>
             <button type="button" className="secondary" onClick={() => setQuotedAnswer(null)}>{copy.closeQuote}</button>
           </section>}
           {session.step === "summary" ? <SummaryPanel session={session} pack={pack} /> : <section className="card explanation-card" aria-labelledby="answer-title">

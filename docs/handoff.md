@@ -2,7 +2,7 @@
 
 更新：2026-10-03。本文是实时接手入口；完整需求见[设计](superpowers/specs/2026-09-26-understanding-lab-design.md)，执行步骤见[实施计划](superpowers/plans/2026-09-26-understanding-lab.md)。
 
-**中断检查点：** 双语界面实现者遇到账号用量限制，任务 3 未完成。部分改动保存在私有备份分支 `codex/bilingual-ui-wip-2026-10-03`；这是 WIP，不是可运行或已审阅版本。原分支 `codex/understanding-lab-mvp` 保留任务 2 的已审阅检查点 `4726179`。继续界面开发时先检查实际分支，不要覆盖 WIP，也不要把它当成已完成的英文支持。
+**恢复检查点：** 任务 3 已补齐主要面板和录音/错误/离线文案的双语接线，但 Sol 再次被账号额度中断，控制器已接续。工作保存在私有备份分支 `codex/bilingual-ui-wip-2026-10-03`；原分支 `codex/understanding-lab-mvp` 保留任务 2 的已审阅检查点 `4726179`。当前类型检查和 5 个定向文件的 19 项测试通过；这不是完整浏览器或独立审阅通过。继续时先检查实际分支，不覆盖 WIP。
 
 最新范围变更：用户已确认“完整中英双语＋英文展示型 README＋检查通过后公开”，并委托选择开源方案。[双语与公开设计](superpowers/specs/2026-10-01-bilingual-public-release-design.md)经一次 Astra 只读架构检查，用户已回复“继续”批准执行；按[新增实施计划](superpowers/plans/2026-10-01-bilingual-public-release.md)推进。英文课程与语言来源 / AI 接口已完成并独立审阅；双语界面正在实施，尚未完成 README 改版或公开切换。不要重做已有两项成果，也不要把此前中文首版约束当成拒绝英文支持的理由；新授权不包含付费调用或公共部署。
 
@@ -32,7 +32,9 @@ AI 输出经过结构、引用、动作校验；一次教学操作最多两次�
 
 检查点 `4726179` 已推到现有私有分支，远端 SHA 核对一致。但对应 [CI 37088142561](https://github.com/tsumon/understanding-lab/actions/runs/37088142561) **失败**：数值、类型、单元、构建与评测步骤通过；浏览器 67 通过、13 跳过、1 失败。失败是 iPhone WebKit 的 `fast refresh retains notes, experiment settings, and a draft from an earlier step`，返回初始解释后应恢复“尚未确认的初始草稿”，实际为空。它不是之前“最新已确认解释”的同一断言；根因尚未证实，不能被后续通过覆盖。上传步骤运行成功不证明上传了文件：当前配置只收集已有快速修改用例的特定诊断文件，需为此次实际失败路径保留同样的有界合成轨迹。禁止反复高次数运行、加状态等待或削弱断言以掩盖故障。
 
-任务 3 中断后，控制器实际执行了 `npm run typecheck && npx vitest run tests/unit/i18n.test.ts tests/unit/app-locale.test.tsx`。类型检查首先失败：`src/client/i18n.ts:38` 起出现语法错误，末尾报告未终止的模板字面量；由于 `&&`，两个测试没有执行。目前仅有 `App.tsx`、`main.tsx` 的部分接线，以及新增 `LocaleProvider.tsx`、`i18n.ts` 和两个测试文件。其他面板、录音/错误文案、浏览器测试和本次失败路径的诊断尚未完成；没有任务 3 完成报告、完整验证或独立审阅。先修复首个解析错误再列出其余类型/运行错误，按新增计划完成，不要声称先前 243 项通过代表当前 WIP 通过。最新远端失败运行的附件清单已核实为零。
+任务 3 中断后的检查先失败于 `i18n.ts` 未闭合模板字符串；修复后又发现 `app-locale.test.tsx` 的零参数 mock 与调用检查类型不匹配。两处修复后，首次定向 3/3 通过。Sol 接续完成主要面板、录音/错误/离线文案接线及当前问题/历史语言测试后再次遇到额度限制，未创建计划中的阶段提交或完成报告。控制器复跑当前代码：`npm run typecheck` 通过；`i18n.test.ts`、`app-locale.test.tsx`、`recording.test.ts`、`error-boundary.test.tsx`、`feedback-panel.test.tsx` 共 5 文件 19/19 通过。请求中切换的原文/元数据已有初步覆盖，但等待语言提示、保存身份完整断言、浏览器上下文语言与英文/离线流程、实际 CI 快速刷新失败路径诊断仍待补齐。完整验证和独立审阅未完成，不用先前 243 项通过或本次定向结果代表整个 WIP 通过。
+
+远端 [WIP CI 37112266710](https://github.com/tsumon/understanding-lab/actions/runs/37112266710) 已核实失败于类型检查，单元/构建/评测/浏览器步骤均跳过，不能把未运行记作通过。当前附件清单为零。新增日志增量扫描后共 23 次，未命中高风险凭据；中低风险仍是工具版本、下载编号和 runner 路径。远端已核实为两个分支、无标签，仓库仍私有。公开前须继续检查最终代码、新运行和可能出现的附件。
 
 公开前检查基线：截至 `3b91fa2`，已扫描全部 48 个本地可达提交的 367 个独立文件版本（包含被 Git 标记为不显示 diff 的数值 JSON），以及提交消息和作者元数据；命中均按实际上下文分类，未留下未解释的敏感内容命中。测试假凭据使用无效域名，数字命中是生成的数值与 CI 编号；现有作者元数据是本机 Git 身份。21 次可用 Actions 日志未命中高风险凭据，已查看的中低风险提示为工具版本、下载编号和托管 runner 路径。远端仅当前分支、无标签；最近附件清单为零。此结果不是绝对安全保证，后续提交、CI 日志与附件仍须在公开前增量检查；未更改历史、删除日志或公开部署。
 
@@ -90,12 +92,12 @@ AI 输出经过结构、引用、动作校验；一次教学操作最多两次�
 
 ## 5. How to 从 GitHub 恢复开发
 
-私有仓库：[tsumon/understanding-lab](https://github.com/tsumon/understanding-lab)。分支：`codex/understanding-lab-mvp`。原本机路径 `/Applications/understanding-lab` 不是运行必需路径。
+私有仓库：[tsumon/understanding-lab](https://github.com/tsumon/understanding-lab)。继续双语界面使用分支 `codex/bilingual-ui-wip-2026-10-03`；`codex/understanding-lab-mvp` 是此前任务 2 检查点，不包含后续 WIP。原本机路径 `/Applications/understanding-lab` 不是运行必需路径。
 
 需要仓库读取权限及 Node 22.23.2 / npm 10.9.8。在新的空目录克隆，不覆盖已有工作：
 
 ```sh
-git clone --branch codex/understanding-lab-mvp https://github.com/tsumon/understanding-lab.git
+git clone --branch codex/bilingual-ui-wip-2026-10-03 https://github.com/tsumon/understanding-lab.git
 cd understanding-lab
 git status --short --branch
 npm ci
@@ -121,7 +123,7 @@ npm run build:offline
 
 最新优先项是双语与英文 README / 开源准备，书面设计已获准，按新增四任务计划连续执行，不再重复询问范围。保持旧记录缺少语言字段时按中文解析而不批量改写；新记录单独保存问题、证据和反馈语言。公开前核查新改动、全部远端历史和可用 Actions 日志，检查未过仍保持私有。以下 WebKit 与真实验收限制继续保留，不重新派发已完成的旧 12 项计划。
 
-额度恢复后的直接步骤：进入 `codex/bilingual-ui-wip-2026-10-03`，读本节与任务 3 brief 对应的已提交实施计划，先处理 `src/client/i18n.ts` 的解析错误；完成所有可见界面及原语言历史展示、录音/错误和离线行为，补新英文流及明确中文的旧浏览器上下文。为 CI 实际失败的快速刷新用例接现有有界诊断，保留原断言。定向测试通过后再跑一次完整单元/类型/离线构建/评测/三浏览器并独立审阅；之后才做任务 4 的英文 README、真实截图、MIT/第三方声明和最终公开门槛。README/许可证/截图尚未开始，仓库仍私有。
+直接步骤：进入 `codex/bilingual-ui-wip-2026-10-03`，读本节与已提交的新实施计划；解析和 mock 类型错误已修复，不重做。完成所有可见界面及原语言历史展示、录音/错误和离线行为，补新英文流及明确中文的旧浏览器上下文。为 CI 实际失败的快速刷新用例接现有有界诊断，保留原断言。定向测试通过后再跑一次完整单元/类型/离线构建/评测/三浏览器并独立审阅；之后才做任务 4 的英文 README、真实截图、MIT/第三方声明和最终公开门槛。README/许可证/截图尚未开始，仓库仍私有。
 
 1. WebKit 间歇回归仍开放：已有带状态断言的诊断路径与不加中间等待的快速路径，不再重复高次数碰运气。后续正常 CI/测试若失败，先保留 `test-results/<用例目录>/rapid-revision-trace.json`；远端查对应 Artifacts 的 `rapid-revision-traces-<run_id>-<run_attempt>`（仅合成轨迹，配置保留 7 天）。上传本身未实测，若无附件先核对是否为该用例且页面可读取。比较第二版捕获旧文本、导航丢失或显示错误，按首次错误边界再做定向实验，不把诊断链路修复当业务问题已解决。
 2. 独立语义门槛已实现并通过 Astra 审阅和本机集成验证，不重做。接口及后续真实验收步骤见 [semantic-release.md](semantic-release.md)。现有 `eval:check` 保持数据集/设计完整性用途，普通 CI 只用合成单测验证拦截逻辑；真实评测 runner 仍需在供应商与预算获准后另行实现，不能直接用 fixture 通过发布。
@@ -138,9 +140,9 @@ npm run build:offline
 ```sh
 git status --short --branch
 git diff --check
-git push origin HEAD:refs/heads/codex/understanding-lab-mvp
+git push origin HEAD:refs/heads/codex/bilingual-ui-wip-2026-10-03
 git rev-parse HEAD
-git ls-remote origin refs/heads/codex/understanding-lab-mvp
+git ls-remote origin refs/heads/codex/bilingual-ui-wip-2026-10-03
 ```
 
 两个 SHA 相同才算保存成功；仓库创建、本地提交不等于上传。不得提交 `.env`、数据库 / WAL、录音、个人学习数据或缓存。源码备份不含浏览器草稿；将来生产数据库另做一致性备份。

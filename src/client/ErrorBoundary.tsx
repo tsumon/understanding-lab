@@ -1,15 +1,22 @@
 import { Component, type ReactNode } from "react";
+import { useLocale } from "./LocaleProvider";
+import type { Messages } from "./i18n";
 
-export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+class Boundary extends Component<{ children: ReactNode; copy: Messages }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
   render() {
     if (!this.state.failed) return this.props.children;
     return <main className="app-shell">
       <section className="card warning-card" role="alert">
-        <h1>页面出错</h1>
-        <p>本机草稿仍在浏览器存储里。可以导出后再刷新。这次错误没有发送到服务器。</p>
+        <h1>{this.props.copy.pageError}</h1>
+        <p>{this.props.copy.pageErrorBody}</p>
       </section>
     </main>;
   }
+}
+
+export function ErrorBoundary({ children }: { children: ReactNode }) {
+  const { copy } = useLocale();
+  return <Boundary copy={copy}>{children}</Boundary>;
 }

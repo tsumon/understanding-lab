@@ -1,28 +1,30 @@
 import type { ExperimentConfig } from "../domain/contracts";
 import { loadCase, type ExperimentPack } from "../experiment/catalog";
 import type { Exploration } from "../experiment/exploration";
+import { useLocale } from "./LocaleProvider";
 
 export function ExperimentControls({ config, onChange }: {
   config: ExperimentConfig; onChange: (next: ExperimentConfig) => void;
 }) {
+  const { copy } = useLocale();
   return <div className="experiment-controls">
-    <label>数据情境
-      <select aria-label="数据情境" value={config.seed} onChange={(event) => onChange({ ...config, seed: Number(event.target.value) as ExperimentConfig["seed"] })}>
-        {[17, 29, 43].map((seed, index) => <option key={seed} value={seed}>情境 {index + 1}（种子 {seed}）</option>)}
+    <label>{copy.dataScenario}
+      <select aria-label={copy.dataScenario} value={config.seed} onChange={(event) => onChange({ ...config, seed: Number(event.target.value) as ExperimentConfig["seed"] })}>
+        {[17, 29, 43].map((seed, index) => <option key={seed} value={seed}>{copy.scenarioOption(index + 1, seed)}</option>)}
       </select>
     </label>
-    <label>样本量
-      <select aria-label="样本量" value={config.n} onChange={(event) => onChange({ ...config, n: Number(event.target.value) as ExperimentConfig["n"] })}>
+    <label>{copy.sampleSize}
+      <select aria-label={copy.sampleSize} value={config.n} onChange={(event) => onChange({ ...config, n: Number(event.target.value) as ExperimentConfig["n"] })}>
         {[20, 40, 80].map((n) => <option key={n} value={n}>{n}</option>)}
       </select>
     </label>
-    <label>噪声标准差
-      <select aria-label="噪声标准差" value={config.noise} onChange={(event) => onChange({ ...config, noise: Number(event.target.value) as ExperimentConfig["noise"] })}>
-        <option value={0}>无（0）</option><option value={0.1}>低（0.1）</option><option value={0.3}>高（0.3）</option>
+    <label>{copy.noiseStd}
+      <select aria-label={copy.noiseStd} value={config.noise} onChange={(event) => onChange({ ...config, noise: Number(event.target.value) as ExperimentConfig["noise"] })}>
+        <option value={0}>{copy.noneNoise}</option><option value={0.1}>{copy.lowNoise}</option><option value={0.3}>{copy.highNoise}</option>
       </select>
     </label>
-    <label>多项式阶数
-      <select aria-label="多项式阶数" value={config.degree} onChange={(event) => onChange({ ...config, degree: Number(event.target.value) })}>
+    <label>{copy.polynomialDegree}
+      <select aria-label={copy.polynomialDegree} value={config.degree} onChange={(event) => onChange({ ...config, degree: Number(event.target.value) })}>
         {Array.from({ length: 12 }, (_, index) => index + 1).map((degree) => <option key={degree} value={degree}>{degree}</option>)}
       </select>
     </label>
@@ -30,6 +32,7 @@ export function ExperimentControls({ config, onChange }: {
 }
 
 function NumericChart({ pack, config }: { pack: ExperimentPack; config: ExperimentConfig }) {
+  const { copy } = useLocale();
   const experiment = loadCase(pack, config);
   const dataset = pack.datasets[experiment.datasetKey];
   const train = dataset.train.x.slice(0, config.n).map((x, index) => [x, dataset.train.y[index]] as const);
@@ -44,7 +47,7 @@ function NumericChart({ pack, config }: { pack: ExperimentPack; config: Experime
   const yScale = (y: number) => 272 - ((y - low) / (high - low)) * 236;
   const curve = experiment.curve.map(([x, y]) => `${xScale(x)},${yScale(y)}`).join(" ");
   return <div className="chart-wrap">
-    <svg viewBox="0 0 680 310" role="img" aria-label={`数值图：训练样本 ${config.n} 个，验证样本 200 个，曲线纵轴 ${low.toFixed(2)} 至 ${high.toFixed(2)}`}>
+    <svg viewBox="0 0 680 310" role="img" aria-label={copy.chartDescription(config.n, low.toFixed(2), high.toFixed(2))}>
       <line x1="46" y1="272" x2="656" y2="272" className="axis" />
       <line x1="46" y1="36" x2="46" y2="272" className="axis" />
       <text x="2" y="40">{high.toFixed(1)}</text><text x="2" y="272">{low.toFixed(1)}</text>
@@ -53,12 +56,12 @@ function NumericChart({ pack, config }: { pack: ExperimentPack; config: Experime
       {validation.map(([x, y], index) => <circle key={`v${index}`} cx={xScale(x)} cy={yScale(y)} r="2.4" className="validation-point" />)}
       {train.map(([x, y], index) => <circle key={`t${index}`} cx={xScale(x)} cy={yScale(y)} r="3.2" className="train-point" />)}
     </svg>
-    <p className="chart-legend"><span className="line-key">拟合曲线</span><span className="dot-key">训练点 ●</span><span className="ring-key">验证点 ○</span></p>
-    <p>纵轴实际范围：{low.toFixed(2)} 至 {high.toFixed(2)}；横轴 0 至 1。</p>
-    {high - low > 20 && <p className="warning">尺度提示：这条曲线有极端值，纵轴已扩大以完整显示，点可能显得集中。</p>}
-    <table><caption>当前选择的均方误差（MSE）</caption><thead><tr><th scope="col">数据</th><th scope="col">MSE</th></tr></thead><tbody>
-      <tr><th scope="row">训练</th><td>{experiment.metrics.trainMse.toFixed(4)}</td></tr>
-      <tr><th scope="row">验证</th><td>{experiment.metrics.validationMse.toFixed(4)}</td></tr>
+    <p className="chart-legend"><span className="line-key">{copy.fitCurve}</span><span className="dot-key">{copy.trainPoints}</span><span className="ring-key">{copy.validationPoints}</span></p>
+    <p>{copy.chartRange(low.toFixed(2), high.toFixed(2))}</p>
+    {high - low > 20 && <p className="warning">{copy.scaleWarning}</p>}
+    <table><caption>{copy.mseCaption}</caption><thead><tr><th scope="col">{copy.data}</th><th scope="col">MSE</th></tr></thead><tbody>
+      <tr><th scope="row">{copy.train}</th><td>{experiment.metrics.trainMse.toFixed(4)}</td></tr>
+      <tr><th scope="row">{copy.validation}</th><td>{experiment.metrics.validationMse.toFixed(4)}</td></tr>
     </tbody></table>
   </div>;
 }
@@ -67,23 +70,24 @@ export function ExperimentPanel({ exploration, pack, loadError, onChange, onFree
   exploration: Exploration; pack: ExperimentPack | null; loadError: string | null;
   onChange: (config: ExperimentConfig) => void; onFreeze: () => void; onReveal: () => void; onRecord: () => void;
 }) {
+  const { copy } = useLocale();
   const currentCase = pack ? loadCase(pack, exploration.config) : null;
   return <section className="card" aria-labelledby="experiment-title">
-    <h2 id="experiment-title">预先计算的交互实验</h2>
-    <p>三组固定种子的合成样本。调整参数会读取已计算的数值；这里没有实时训练，也不会发送给 AI。</p>
+    <h2 id="experiment-title">{copy.experimentTitle}</h2>
+    <p>{copy.experimentIntro}</p>
     <ExperimentControls config={exploration.config} onChange={onChange} />
-    {loadError && <p role="alert">实验数据读取失败：{loadError}</p>}
-    {!pack && !loadError && <p>正在读取实验数据…</p>}
+    {loadError && <p role="alert">{copy.packError(loadError === "unknown" ? copy.unknownError : loadError)}</p>}
+    {!pack && !loadError && <p>{copy.packLoading}</p>}
     {pack && <NumericChart pack={pack} config={exploration.config} />}
     <div className="actions">
-      <button type="button" onClick={onFreeze}>冻结当前选择</button>
-      <button type="button" onClick={onReveal} disabled={!exploration.frozen || !pack}>揭示最终测试结果</button>
-      <button type="button" onClick={onRecord} disabled={!pack}>记录实验观察</button>
+      <button type="button" onClick={onFreeze}>{copy.freeze}</button>
+      <button type="button" onClick={onReveal} disabled={!exploration.frozen || !pack}>{copy.reveal}</button>
+      <button type="button" onClick={onRecord} disabled={!pack}>{copy.record}</button>
     </div>
-    {exploration.frozen && <p>已冻结：情境 {exploration.frozen.seed}，样本 {exploration.frozen.n}，噪声 {exploration.frozen.noise}，阶数 {exploration.frozen.degree}。</p>}
+    {exploration.frozen && <p>{copy.frozen(exploration.frozen.seed, exploration.frozen.n, exploration.frozen.noise, exploration.frozen.degree)}</p>}
     {exploration.revealed && currentCase
-      ? <p>测试 MSE：{currentCase.metrics.testMse.toFixed(4)}。这是冻结选择后的最终测试结果。</p>
-      : <p>测试结果尚未揭示。改变参数后需要重新冻结才能揭示新选择。</p>}
-    {exploration.contaminated && <p className="warning">测试信息已影响后续选择；新的测试数值不再是独立证据。</p>}
+      ? <p>{copy.testResult(currentCase.metrics.testMse.toFixed(4))}</p>
+      : <p>{copy.testHidden}</p>}
+    {exploration.contaminated && <p className="warning">{copy.contaminated}</p>}
   </section>;
 }

@@ -23,7 +23,9 @@ export async function requestTranscription(
   requestId: string,
   signal: AbortSignal,
   fetchImpl: typeof fetch = fetch,
+  locale: Locale = "zh-CN",
 ): Promise<TranscribeOutcome> {
+  const copy = messages[locale];
   const body = new FormData();
   body.append("audio", blob, "speech.webm");
   try {
@@ -36,29 +38,29 @@ export async function requestTranscription(
     });
     if (response.status === 400) {
       const code = await errorCode(response);
-      if (code === "consent-required") return { status: "consent", question: "转写需要单独同意。这次没有发送录音。" };
-      return { status: "invalid", question: "这段录音无法转写。请改用文字，或重录后再试。" };
+      if (code === "consent-required") return { status: "consent", question: copy.transcriptionConsent };
+      return { status: "invalid", question: copy.transcriptionInvalid };
     }
-    if (response.status === 401) return { status: "unauthorized", question: "转写需要先登录。本机草稿未上传。" };
-    if (response.status === 413) return { status: "invalid", question: "录音文件超过 10MiB，没有发送给转写服务。" };
-    if (response.status === 422) return { status: "too-long", question: "录音超过 60 秒，服务端没有裁成合法长度。" };
-    if (response.status === 429) return { status: "quota", question: "今日转写次数已用完。额度按 UTC 日期计算，每天最多 10 次。" };
+    if (response.status === 401) return { status: "unauthorized", question: copy.transcriptionUnauthorized };
+    if (response.status === 413) return { status: "invalid", question: copy.transcriptionTooLarge };
+    if (response.status === 422) return { status: "too-long", question: copy.transcriptionTooLong };
+    if (response.status === 429) return { status: "quota", question: copy.transcriptionQuota };
     if (response.status === 503) {
       const code = await errorCode(response);
-      if (code === "feature-disabled") return { status: "unavailable", question: "转写未启用。请用文字继续。" };
-      return { status: "unavailable", question: "转写服务正忙，请稍后重试。" };
+      if (code === "feature-disabled") return { status: "unavailable", question: copy.transcriptionDisabled };
+      return { status: "unavailable", question: copy.transcriptionBusy };
     }
-    if (response.status !== 200) return { status: "error", question: "转写暂时不可用。请用文字继续。" };
+    if (response.status !== 200) return { status: "error", question: copy.transcriptionUnavailable };
     const parsed: unknown = await response.json().catch(() => null);
     const text = parsed !== null && typeof parsed === "object" && typeof (parsed as { text?: unknown }).text === "string"
       ? (parsed as { text: string }).text : "";
-    if (!text.trim()) return { status: "invalid", question: "转写结果为空。请编辑文字后再确认。" };
+    if (!text.trim()) return { status: "invalid", question: copy.transcriptionEmpty };
     return { status: "ok", text };
   } catch (error) {
     if (signal.aborted || (error instanceof Error && error.name === "AbortError")) {
-      return { status: "error", question: "已取消转写。录音没有自动成为回答。" };
+      return { status: "error", question: copy.transcriptionCanceled };
     }
-    return { status: "unavailable", question: "转写暂时不可用。请用文字继续。" };
+    return { status: "unavailable", question: copy.transcriptionUnavailable };
   }
 }
 
@@ -69,3 +71,5 @@ async function errorCode(response: Response): Promise<string | undefined> {
       ? (body as { error: string }).error : undefined;
   } catch { return undefined; }
 }
+import type { Locale } from "../domain/locale";
+import { messages } from "./i18n";

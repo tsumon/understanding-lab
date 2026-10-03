@@ -2,6 +2,7 @@ import { useState } from "react";
 import { RECOVERED_FEEDBACK_MODEL, type Answer, type LearningSession, type StoredFeedback } from "../domain/contracts";
 import { metricFor, type ExperimentPack } from "../experiment/catalog";
 import type { Topic } from "../tutor/verify";
+import { useLocale } from "./LocaleProvider";
 
 type Props = {
   feedback: StoredFeedback;
@@ -12,63 +13,63 @@ type Props = {
   onDisagree: (reason: string) => void;
 };
 
-const metricLabels = { trainMse: "训练 MSE", validationMse: "验证 MSE", testMse: "测试 MSE" } as const;
-
 export function FeedbackPanel({ feedback, session, topic, pack, onQuote, onDisagree }: Props) {
+  const { copy } = useLocale();
+  const metricLabels = { trainMse: copy.trainMse, validationMse: copy.validationMse, testMse: copy.testMse };
   const [editingDisagreement, setEditingDisagreement] = useState(false);
   const [reason, setReason] = useState("");
   const output = feedback.output;
 
-  return <section className="card feedback-card" aria-label="教学反馈">
+  return <section className="card feedback-card" aria-label={copy.feedbackTitle}>
     <p className="eyebrow">{feedback.model === RECOVERED_FEEDBACK_MODEL
-      ? "本机恢复的反馈 · 不能当作模型调用证明" : "AI 教学反馈 · 结构已校验"}</p>
-    <h2>{output.claim}</h2>
-    <p className="preserve-breaks">{output.reason}</p>
-    {output.question && <p className="question">追问：{output.question}</p>}
+      ? copy.recoveredFeedback : copy.aiFeedback}</p>
+    <h2 lang={feedback.responseLocale ?? "zh-CN"}>{output.claim}</h2>
+    <p className="preserve-breaks" lang={feedback.responseLocale ?? "zh-CN"}>{output.reason}</p>
+    {output.question && <p className="question">{copy.followup}<span lang={feedback.responseLocale ?? "zh-CN"}>{output.question}</span></p>}
 
-    {output.quotes.length > 0 && <div><h3>引用的原话</h3><ul>{output.quotes.map((quote, index) => {
+    {output.quotes.length > 0 && <div><h3>{copy.quotes}</h3><ul>{output.quotes.map((quote, index) => {
       const answer = session.answers.find((item) => item.id === quote.answerId && item.revision === quote.answerRevision);
       return <li key={`${quote.answerId}:${quote.answerRevision}:${index}`}>
-        {answer ? <button type="button" className="secondary" onClick={() => onQuote(answer)} aria-label={`查看第 ${quote.answerRevision} 版原话`}>
-          <q className="preserve-breaks">{quote.text}</q> · 第 {quote.answerRevision} 版
+        {answer ? <button type="button" className="secondary" onClick={() => onQuote(answer)} aria-label={copy.viewQuote(quote.answerRevision)}>
+          <q className="preserve-breaks">{quote.text}</q> · {copy.quoteRevision(quote.answerRevision)}
         </button> : <q className="preserve-breaks">{quote.text}</q>}
       </li>;
     })}</ul></div>}
 
-    {output.sources.length > 0 && <div><h3>材料依据</h3><ul>{output.sources.map((source, index) => {
+    {output.sources.length > 0 && <div><h3>{copy.sources}</h3><ul>{output.sources.map((source, index) => {
       const paragraph = source.topicVersion === topic.version
         ? topic.paragraphs.find((item) => item.id === source.paragraphId) : undefined;
       const url = paragraph?.source;
       const approvedUrl = url && URL.canParse(url) && new URL(url).protocol === "https:" ? url : null;
       return <li key={`${source.topicVersion}:${source.paragraphId}:${index}`}>
-        {approvedUrl ? <a href={approvedUrl} target="_blank" rel="noreferrer noopener">材料 {source.paragraphId}</a>
-          : <span>材料 {source.paragraphId}（无可用链接）</span>}
+        {approvedUrl ? <a href={approvedUrl} target="_blank" rel="noreferrer noopener">{copy.materialSource(source.paragraphId)}</a>
+          : <span>{copy.materialSource(source.paragraphId)} ({copy.unavailableLink})</span>}
       </li>;
     })}</ul></div>}
 
-    {output.metrics.length > 0 && <div><h3>实验数值</h3><ul>{output.metrics.map((citation, index) => {
+    {output.metrics.length > 0 && <div><h3>{copy.metrics}</h3><ul>{output.metrics.map((citation, index) => {
       const key = `${citation.snapshotId}:${citation.metric}:${index}`;
       const snapshot = session.snapshots.find((item) => item.id === citation.snapshotId);
       if (!snapshot) {
-        return <li key={key}>实验数值暂不可用：找不到对应的实验记录。</li>;
+        return <li key={key}>{copy.missingSnapshot}</li>;
       }
       if (citation.metric === "testMse" && !snapshot.testRevealed) {
-        return <li key={key}>引用的测试误差尚未揭示，不显示数值。</li>;
+        return <li key={key}>{copy.hiddenTestMetric}</li>;
       }
       if (!pack) {
-        return <li key={key}>{metricLabels[citation.metric]} 暂不可用：实验数据未加载。</li>;
+        return <li key={key}>{metricLabels[citation.metric]} {copy.metricPackMissing}</li>;
       }
       try {
         const value = metricFor(pack, snapshot, citation.metric);
-        return <li key={key}>{metricLabels[citation.metric]} {value.toFixed(4)}（记录 {citation.snapshotId}）</li>;
+        return <li key={key}>{metricLabels[citation.metric]} {value.toFixed(4)} {copy.metricRecord(citation.snapshotId)}</li>;
       } catch {
-        return <li key={key}>{metricLabels[citation.metric]} 暂不可用：无法核对这次引用。</li>;
+        return <li key={key}>{metricLabels[citation.metric]} {copy.metricUnverified}</li>;
       }
     })}</ul></div>}
 
-    <p className="hint">结构校验不保证语义正确；教学判断仍待人工评测。</p>
-    {!editingDisagreement ? <button type="button" className="secondary" onClick={() => setEditingDisagreement(true)}>提出异议</button>
-      : <div><label htmlFor={`disagreement-${feedback.id}`}>异议原因</label>
+    <p className="hint">{copy.feedbackCaution}</p>
+    {!editingDisagreement ? <button type="button" className="secondary" onClick={() => setEditingDisagreement(true)}>{copy.disagree}</button>
+      : <div><label htmlFor={`disagreement-${feedback.id}`}>{copy.disagreementReason}</label>
         <textarea id={`disagreement-${feedback.id}`} value={reason} rows={3} onChange={(event) => {
           if ([...event.target.value].length <= 1000) setReason(event.target.value);
           else setReason([...event.target.value].slice(0, 1000).join(""));
@@ -77,8 +78,8 @@ export function FeedbackPanel({ feedback, session, topic, pack, onQuote, onDisag
           onDisagree(reason);
           setEditingDisagreement(false);
           setReason("");
-        }}>记录异议</button>
-        <p className="hint">异议随本机尝试保存，不会默认用于模型训练。</p>
+        }}>{copy.recordDisagreement}</button>
+        <p className="hint">{copy.disagreementHint}</p>
       </div>}
   </section>;
 }

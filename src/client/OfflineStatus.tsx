@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useLocale } from "./LocaleProvider";
 
 export function OfflineStatus({ enabled = import.meta.env.PROD }: { enabled?: boolean } = {}) {
+  const { copy } = useLocale();
   const [ready, setReady] = useState(false);
   const [update, setUpdate] = useState<ServiceWorker | null>(null);
   useEffect(() => {
@@ -31,10 +33,10 @@ export function OfflineStatus({ enabled = import.meta.env.PROD }: { enabled?: bo
     return () => { active = false; navigator.serviceWorker.removeEventListener("message", onMessage); };
   }, [enabled]);
   return <div className="offline-status" aria-live="polite">
-    {ready ? "公共材料与实验数据已缓存，可离线使用" : "公共离线缓存尚未确认"}
+    {ready ? copy.cacheReady : copy.cacheUnknown}
     {update && <button type="button" onClick={() => {
       update.postMessage({ type: "ACTIVATE_UPDATE" });
       navigator.serviceWorker.addEventListener("controllerchange", () => location.reload(), { once: true });
-    }}>有更新，刷新使用</button>}
+    }}>{copy.updateReady}</button>}
   </div>;
 }

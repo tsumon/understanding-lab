@@ -37,3 +37,12 @@ test("transcribe maps consent, quota and too-long without treating them as answe
   await expect(requestTranscription(new Blob(["x"]), "r", new AbortController().signal, async () =>
     new Response(JSON.stringify({ error: "too-long" }), { status: 422 }))).resolves.toMatchObject({ status: "too-long" });
 });
+
+test("English transcription errors retain consent and quota meaning", async () => {
+  const consent = await requestTranscription(new Blob(["x"]), "r", new AbortController().signal,
+    async () => new Response(JSON.stringify({ error: "consent-required" }), { status: 400 }), "en");
+  expect(consent).toMatchObject({ status: "consent", question: "Transcription needs separate consent. The recording was not sent." });
+  const quota = await requestTranscription(new Blob(["x"]), "r", new AbortController().signal,
+    async () => new Response(JSON.stringify({ error: "quota-exhausted" }), { status: 429 }), "en");
+  expect(quota).toMatchObject({ status: "quota", question: expect.stringContaining("UTC") });
+});
