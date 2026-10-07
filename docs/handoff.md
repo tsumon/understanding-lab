@@ -2,7 +2,7 @@
 
 更新：2026-10-07。本文是实时接手入口；完整需求见[设计](superpowers/specs/2026-09-26-understanding-lab-design.md)，执行步骤见[实施计划](superpowers/plans/2026-09-26-understanding-lab.md)。
 
-**恢复检查点：** 双语计划任务 1–4 和最终审阅均完成。Astra 的两项 P2 已由 Sol 在 `cb18bdb` 修复，并经一次独立定向复核确认全部解决、没有新增阻塞。本机 264 项测试、类型/离线构建/评测检查及三配置浏览器 71 通过、13 原有跳过。修复已推送私有分支 `codex/bilingual-ui-wip-2026-10-03`；默认分支仍为 `4726179`，尚未合并或公开。下一门槛是核实新 CI、刷新公开审计，再普通 fast-forward 默认分支和公开源码。之前 `d6ff132` 的 [CI](https://github.com/tsumon/understanding-lab/actions/runs/37322835997) 失败必须保留：iPhone WebKit 笔记输入超时且无诊断文件。本轮诊断修复不证明业务根因修复，历史故障仍开放。最新证据见 [2026-10-07](verification/2026-10-07.md)。勿重做已完成任务、截图或全量审阅。
+**恢复检查点：** 双语计划任务 1–4 和最终审阅均完成。Astra 的两项 P2 已由 Sol 在 `cb18bdb` 修复，并经一次独立定向复核确认全部解决、没有新增阻塞。本机 264 项测试、类型/离线构建/评测检查及三配置浏览器 71 通过、13 原有跳过。最新私有备份分支是 `codex/bilingual-ui-wip-2026-10-03`；默认分支仍为 `4726179`，尚未合并或公开。新 CI 因浏览器安装顺序失败：超时诊断需要 Chromium，但 CI 到后续步骤才安装。Luna 在 `7d43b64` 完成最小流水线/开发说明修正，独立 Sol 审阅通过；没有改业务和断言。接续核实该修正的新 CI，再刷新审计、fast-forward 默认分支和公开。之前 `d6ff132` 的 [CI](https://github.com/tsumon/understanding-lab/actions/runs/37322835997) 失败必须保留：iPhone WebKit 笔记输入超时且无诊断文件。本轮诊断修复不证明业务根因修复，历史故障仍开放。最新证据见 [2026-10-07](verification/2026-10-07.md)。勿重做已完成任务、截图或全量审阅。
 
 最新范围变更：用户已确认“完整中英双语＋英文展示型 README＋检查通过后公开”，并委托选择开源方案。[双语与公开设计](superpowers/specs/2026-10-01-bilingual-public-release-design.md)经一次 Astra 只读架构检查，用户已回复“继续”批准执行；按[新增实施计划](superpowers/plans/2026-10-01-bilingual-public-release.md)推进。英文课程、语言来源 / AI 接口与双语界面均已完成并独立审阅；README 改版和公开切换仍在后续门槛。不要重做已有成果，也不要把此前中文首版约束当成拒绝英文支持的理由；新授权不包含付费调用或公共部署。
 
