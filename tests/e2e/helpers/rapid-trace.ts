@@ -68,3 +68,17 @@ export async function persistRapidRevisionTrace(testInfo: TestInfo, trace: unkno
   await writeFile(path, JSON.stringify(trace, null, 2), "utf8");
   await testInfo.attach("rapid-revision-trace.json", { path, contentType: "application/json" });
 }
+
+/** afterEach has its own Playwright timeout, even when the test body has expired. */
+export async function persistFailedRapidRevisionTrace(page: Page, testInfo: TestInfo): Promise<void> {
+  if (testInfo.status === testInfo.expectedStatus) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const trace = await Promise.race([
+      page.evaluate(() => (window as Window & { __rapidRevisionTrace?: () => object }).__rapidRevisionTrace?.()),
+      new Promise<undefined>((resolve) => { timer = setTimeout(() => resolve(undefined), 3000); }),
+    ]);
+    if (trace) await persistRapidRevisionTrace(testInfo, trace);
+  } catch { /* Diagnostics must not replace the original failure. */ }
+  finally { if (timer) clearTimeout(timer); }
+}

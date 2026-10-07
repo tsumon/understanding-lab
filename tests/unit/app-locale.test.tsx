@@ -120,6 +120,150 @@ test("an in-flight English tutor response survives a language switch with origin
   expect(fetch.mock.calls.filter((call) => String(call[0]).includes("/api/tutor"))).toHaveLength(1);
 });
 
+test.each(["same-revision navigation", "content edit"])("a %s during tutor authentication never sends the stale request", async (change) => {
+  localStorage.setItem("understanding-lab:ui-locale", "en");
+  let resolveAuth!: (response: Response) => void;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("/experiments/")) return Response.json(pack);
+    if (String(input).includes("/api/auth/get-session")) return new Promise<Response>((resolve) => { resolveAuth = resolve; });
+    throw new Error(`Unexpected request: ${String(input)}`);
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { App } = await import("../../src/client/App");
+  const { LocaleProvider } = await import("../../src/client/LocaleProvider");
+  render(<LocaleProvider><App /></LocaleProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Start learning" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Your explanation" }), { target: { value: "Original explanation" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm this explanation" }));
+  fireEvent.click(screen.getByRole("button", { name: "Send to AI" }));
+  await waitFor(() => expect(resolveAuth).toBeTypeOf("function"));
+  if (change === "same-revision navigation") fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  else fireEvent.change(screen.getByRole("textbox", { name: "Your explanation" }), { target: { value: "New explanation" } });
+  await act(async () => resolveAuth(Response.json({ user: { id: "alice" }, session: { id: "synthetic-session" } })));
+  expect(fetch.mock.calls.filter(([input]) => String(input).includes("/api/tutor"))).toHaveLength(0);
+  expect(localStorage.getItem("understanding-lab:v1:owner:alice:current")).toBeNull();
+  expect(screen.queryByText(/Current account alice/)).toBeNull();
+});
+
+test("sign-out during tutor authentication cannot restore the old account or send", async () => {
+  localStorage.setItem("understanding-lab:ui-locale", "en");
+  let resolveTutorAuth!: (response: Response) => void;
+  let authCalls = 0;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("/experiments/")) return Response.json(pack);
+    if (String(input).includes("/api/auth/get-session")) {
+      authCalls += 1;
+      return authCalls === 1 ? Response.json({ user: { id: "alice" }, session: { id: "synthetic-session" } })
+        : new Promise<Response>((resolve) => { resolveTutorAuth = resolve; });
+    }
+    if (String(input).includes("/api/sessions")) return Response.json({ sessions: [] });
+    if (String(input).includes("/api/auth/sign-out")) return Response.json({ success: true });
+    throw new Error(`Unexpected request: ${String(input)}`);
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { App } = await import("../../src/client/App");
+  const { LocaleProvider } = await import("../../src/client/LocaleProvider");
+  render(<LocaleProvider><App /></LocaleProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Start learning" }));
+  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+  await screen.findByRole("button", { name: "Sign out" });
+  fireEvent.click(screen.getByRole("button", { name: "Send to AI" }));
+  await waitFor(() => expect(resolveTutorAuth).toBeTypeOf("function"));
+  fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+  await screen.findByRole("button", { name: "Sign in" });
+  await act(async () => resolveTutorAuth(Response.json({ user: { id: "alice" }, session: { id: "synthetic-session" } })));
+  expect(screen.getByRole("button", { name: "Sign in" })).toBeTruthy();
+  expect(fetch.mock.calls.filter(([input]) => String(input).includes("/api/tutor"))).toHaveLength(0);
+});
+
+test("another account loaded during tutor authentication owns the draft and blocks the stale send", async () => {
+  localStorage.setItem("understanding-lab:ui-locale", "en");
+  let resolveTutorAuth!: (response: Response) => void;
+  let authCalls = 0;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("/experiments/")) return Response.json(pack);
+    if (String(input).includes("/api/auth/get-session")) {
+      authCalls += 1;
+      return authCalls === 1 ? new Promise<Response>((resolve) => { resolveTutorAuth = resolve; })
+        : Response.json({ user: { id: "bob" }, session: { id: "bob-session" } });
+    }
+    if (String(input).includes("/api/sessions")) return Response.json({ sessions: [] });
+    throw new Error(`Unexpected request: ${String(input)}`);
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { App } = await import("../../src/client/App");
+  const { LocaleProvider } = await import("../../src/client/LocaleProvider");
+  render(<LocaleProvider><App /></LocaleProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Start learning" }));
+  fireEvent.click(screen.getByRole("button", { name: "Send to AI" }));
+  await waitFor(() => expect(resolveTutorAuth).toBeTypeOf("function"));
+  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+  await screen.findByRole("button", { name: "Sign out" });
+  await act(async () => resolveTutorAuth(Response.json({ user: { id: "alice" }, session: { id: "old-session" } })));
+  expect(screen.getByText(/Current account bob/)).toBeTruthy();
+  expect(localStorage.getItem("understanding-lab:v1:owner:alice:current")).toBeNull();
+  expect(fetch.mock.calls.filter(([input]) => String(input).includes("/api/tutor"))).toHaveLength(0);
+});
+
+test("a changed authenticated account cannot send the captured account's tutor session", async () => {
+  localStorage.setItem("understanding-lab:ui-locale", "en");
+  let resolveTutorAuth!: (response: Response) => void;
+  let authCalls = 0;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("/experiments/")) return Response.json(pack);
+    if (String(input).includes("/api/auth/get-session")) {
+      authCalls += 1;
+      return authCalls === 1 ? Response.json({ user: { id: "alice" }, session: { id: "alice-session" } })
+        : new Promise<Response>((resolve) => { resolveTutorAuth = resolve; });
+    }
+    if (String(input).includes("/api/sessions")) return Response.json({ sessions: [] });
+    throw new Error(`Unexpected request: ${String(input)}`);
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { App } = await import("../../src/client/App");
+  const { LocaleProvider } = await import("../../src/client/LocaleProvider");
+  render(<LocaleProvider><App /></LocaleProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Start learning" }));
+  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+  await screen.findByText("Current account alice");
+  fireEvent.click(screen.getByRole("button", { name: "Send to AI" }));
+  await waitFor(() => expect(resolveTutorAuth).toBeTypeOf("function"));
+  await act(async () => resolveTutorAuth(Response.json({ user: { id: "bob" }, session: { id: "bob-session" } })));
+  expect(screen.getByText("Current account alice")).toBeTruthy();
+  expect(fetch.mock.calls.filter(([input]) => String(input).includes("/api/tutor"))).toHaveLength(0);
+});
+
+test("loading another session with the same id and revision cancels tutor authentication", async () => {
+  localStorage.setItem("understanding-lab:ui-locale", "en");
+  const { writeEnvelope } = await import("../../src/client/local-store");
+  writeEnvelope("current", { session: newSession("current"),
+    exploration: { config: { seed: 17, n: 40, noise: 0.1, degree: 3 }, frozen: null, revealed: false, contaminated: false },
+    unconfirmedText: "Alice's owner draft", updatedAt: "2026-10-07T00:00:00Z" }, "alice");
+  let resolveTutorAuth!: (response: Response) => void;
+  let authCalls = 0;
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("/experiments/")) return Response.json(pack);
+    if (String(input).includes("/api/auth/get-session")) {
+      authCalls += 1;
+      return authCalls === 1 ? new Promise<Response>((resolve) => { resolveTutorAuth = resolve; })
+        : Response.json({ user: { id: "alice" }, session: { id: "new-session" } });
+    }
+    throw new Error(`Unexpected request: ${String(input)}`);
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { App } = await import("../../src/client/App");
+  const { LocaleProvider } = await import("../../src/client/LocaleProvider");
+  render(<LocaleProvider><App /></LocaleProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Start learning" }));
+  fireEvent.click(screen.getByRole("button", { name: "Send to AI" }));
+  await waitFor(() => expect(resolveTutorAuth).toBeTypeOf("function"));
+  fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+  await waitFor(() => expect(screen.getByRole("textbox", { name: "Your explanation" })).toHaveProperty("value", "Alice's owner draft"));
+  await act(async () => resolveTutorAuth(Response.json({ user: { id: "alice" }, session: { id: "old-session" } })));
+  expect(screen.getByRole("textbox", { name: "Your explanation" })).toHaveProperty("value", "Alice's owner draft");
+  expect(fetch.mock.calls.filter(([input]) => String(input).includes("/api/tutor"))).toHaveLength(0);
+});
+
 test("a language-only switch preserves owner drafts, pending identity, exploration, and consent without saving", async () => {
   const { prepareSave } = await import("../../src/client/sync");
   const { writeEnvelope, readEnvelope } = await import("../../src/client/local-store");

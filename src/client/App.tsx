@@ -7,7 +7,7 @@ import { clearConflict, clearOwnerCache, deleteDraft, rawDraftForExport, readCon
 import { envelopeFromCloud, forkAttempt, keepPending, listCloudSessions, prepareSave, synchronize } from "./sync";
 import { getSignedInUser, signInWithGitHub, signOut } from "./auth-client";
 import { Recorder } from "./Recorder";
-import { postTutor, TutorRequestGuard } from "./ai-client";
+import { postTutor, TutorRequestGuard, type TutorRequest } from "./ai-client";
 import { MaterialPanel } from "./MaterialPanel";
 import { ExperimentPanel } from "./ExperimentPanel";
 import { SummaryPanel, STEPS } from "./SummaryPanel";
@@ -64,6 +64,7 @@ export function App() {
   const pendingRef = useRef<PendingSave | null>(saved?.pendingSave ?? null);
   const tutorGuard = useRef(new TutorRequestGuard());
   const tutorBusyRef = useRef(false);
+  const tutorOperation = useRef<TutorRequest | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [includeNotes, setIncludeNotes] = useState(false);
   const [tutorBusy, setTutorBusy] = useState(false);
@@ -71,6 +72,21 @@ export function App() {
   const [signOutPrompt, setSignOutPrompt] = useState(false);
 
   const persistOwner = (nextUser = userId) => nextUser || null;
+  const invalidateTutor = () => {
+    tutorGuard.current.invalidate();
+    tutorOperation.current = null;
+    tutorBusyRef.current = false;
+    setTutorBusy(false);
+    setTutorLocale(null);
+  };
+  const finishTutor = (request: TutorRequest) => {
+    tutorGuard.current.finish(request.requestId);
+    if (tutorOperation.current !== request) return;
+    tutorOperation.current = null;
+    tutorBusyRef.current = false;
+    setTutorBusy(false);
+    setTutorLocale(null);
+  };
 
   useEffect(() => {
     fetch("/experiments/overfitting.v1.json").then((response) => {
@@ -96,10 +112,11 @@ export function App() {
   }, [started, session, exploration, drafts, text, corruptRaw, binding, autoSave, pendingSave, userId]);
 
   useEffect(() => {
-    tutorGuard.current.invalidate();
-  }, [session.contentRevision, session.step, session.clarificationRound]);
+    invalidateTutor();
+  }, [session.id, session.contentRevision, session.step, session.clarificationRound, binding?.ownerId]);
 
   const loadDraft = (draft: DraftEnvelope, conflictCopy: ConflictCopy | null, owner: string | null) => {
+    invalidateTutor();
     setSession(draft.session);
     setExploration(draft.exploration);
     setDrafts(draft.drafts ?? {});
@@ -117,6 +134,7 @@ export function App() {
   };
 
   const identifyUser = async (user: { id: string }) => {
+    invalidateTutor();
     setUserId(user.id);
     lastUser.current = user.id;
     const ownerDraft = readEnvelope(draftId, user.id);
@@ -141,6 +159,7 @@ export function App() {
   const exportCurrent = () => download("understanding-lab-attempt.json", JSON.stringify({ session, exploration, drafts, unconfirmedText: text, updatedAt: new Date().toISOString() }, null, 2), "application/json");
   const begin = () => { setStarted(true); setView("explanation"); setActionError(null); };
   const moveTo = (next: LearningSession) => {
+    invalidateTutor();
     setSession(next);
     const slot = slotFor(next);
     setText(slot ? drafts[slot] ?? currentAnswer(next)?.text ?? "" : "");
@@ -149,6 +168,7 @@ export function App() {
   };
   const changeText = (value: string) => {
     if ([...value].length > 4000) return;
+    if (value !== text) invalidateTutor();
     const slot = slotFor(session);
     const nextDrafts = slot ? { ...drafts, [slot]: value } : drafts;
     setText(value);
@@ -158,6 +178,7 @@ export function App() {
   };
   const confirm = () => {
     if (!text.trim()) { setActionError("empty-answer"); return; }
+    invalidateTutor();
     const existing = currentAnswer(session);
     const answer: Answer = {
       id: existing?.id ?? `${session.id}:${session.step}:${session.step === "clarify" ? session.clarificationRound : 1}`,
@@ -179,6 +200,7 @@ export function App() {
   };
   const record = () => {
     if (session.step !== "experiment") { setActionError("snapshot-step"); return; }
+    invalidateTutor();
     const snapshot: Snapshot = {
       id: crypto.randomUUID(), packVersion: "overfitting.v1", config: { ...exploration.config },
       prediction: [...session.answers].reverse().find((answer) => answer.step === "predict")?.text ?? "",
@@ -202,6 +224,7 @@ export function App() {
       setActionError("wrong-account");
       return;
     }
+    if (userId && userId !== user.id) invalidateTutor();
     lastUser.current = user.id;
     setUserId(user.id);
     setSyncState("syncing");
@@ -219,6 +242,7 @@ export function App() {
     }
     if (outcome.status === "saved") {
       const nextBinding = { ownerId: user.id, id: outcome.saved.session.id, serverRevision: outcome.saved.serverRevision };
+      invalidateTutor();
       setSession(outcome.saved.session);
       setBinding(nextBinding);
       setConflict(null);
@@ -250,6 +274,7 @@ export function App() {
   }, [started, session, autoSave, binding, conflict, corruptRaw, syncState]);
   const loadCloudVersion = () => {
     if (!conflict) return;
+    invalidateTutor();
     const cloud = conflict.cloud;
     const ownerId = binding?.ownerId ?? lastUser.current;
     const nextBinding = ownerId
@@ -268,6 +293,7 @@ export function App() {
     persist(envelopeOf(cloud.session, drafts, slot ? drafts[slot] ?? currentAnswer(cloud.session)?.text ?? "" : "", nextBinding, autoSave, null), persistOwner());
   };
   const saveAsNewAttempt = () => {
+    invalidateTutor();
     const owner = persistOwner();
     const next = forkAttempt(envelopeOf(), crypto.randomUUID());
     setSession(next.session);
@@ -286,6 +312,7 @@ export function App() {
     && (pendingSave || conflict || syncState === "offline" || syncState === "deleted" || JSON.stringify(session) !== lastPushed.current),
   );
   const restoreAnonymous = () => {
+    invalidateTutor();
     const anon = readEnvelope(draftId);
     const anonConflict = readConflict(draftId);
     if (anon) loadDraft(anon, anonConflict, null);
@@ -308,7 +335,7 @@ export function App() {
     setSignOutPrompt(false);
   };
   const finishSignOut = async () => {
-    tutorGuard.current.invalidate();
+    invalidateTutor();
     const owner = userId ?? lastUser.current;
     const keepAnonymousMemory = !binding;
     if (owner) clearOwnerCache(owner);
@@ -329,35 +356,43 @@ export function App() {
     catch { setActionError("login-unavailable"); }
   };
   const handleSignOut = async () => {
+    invalidateTutor();
     if (unsyncedAccountWork()) { setSignOutPrompt(true); return; }
     await finishSignOut();
   };
   const clearDeletedLocal = () => {
     const owner = persistOwner();
-    tutorGuard.current.invalidate();
+    invalidateTutor();
     deleteDraft(draftId, owner);
     restoreAnonymous();
     setSyncState("local");
   };
   const sendToTutor = async () => {
     if (tutorBusyRef.current) return;
+    const request = tutorGuard.current.start(session.contentRevision);
+    if (!request) return;
     const requestLocale = locale;
+    tutorOperation.current = request;
     tutorBusyRef.current = true;
     setTutorBusy(true);
     setTutorLocale(requestLocale);
     setActionError(null);
     const user = await getSignedInUser().catch(() => null);
+    if (request.signal.aborted || tutorOperation.current !== request || !tutorGuard.current.accept(request.requestId, session.contentRevision)) return;
     if (!user) {
-      tutorBusyRef.current = false;
-      setTutorBusy(false);
+      finishTutor(request);
       setActionError("tutor-login");
+      return;
+    }
+    if (userId && userId !== user.id) {
+      finishTutor(request);
       return;
     }
     setUserId(user.id);
     lastUser.current = user.id;
-    const outcome = await postTutor(session, { sendConsent: true, includeNotes, locale: requestLocale, guard: tutorGuard.current });
-    tutorBusyRef.current = false;
-    setTutorBusy(false);
+    const outcome = await postTutor(session, { sendConsent: true, includeNotes, locale: requestLocale, guard: tutorGuard.current, request });
+    if (request.signal.aborted || tutorOperation.current !== request) return;
+    finishTutor(request);
     if (outcome === null) return;
     if (outcome.status === "accepted" && outcome.result.status === "ok") {
       const stored: StoredFeedback = {
@@ -371,6 +406,7 @@ export function App() {
         createdAt: new Date().toISOString(),
       };
       setSession((current) => {
+        if (request.signal.aborted || current.id !== session.id || current.step !== session.step || current.clarificationRound !== session.clarificationRound) return current;
         if (current.contentRevision !== stored.contentRevision) return current;
         if (current.feedback.some((item) => item.id === stored.id)) return current;
         try { return SessionSchema.parse({ ...current, feedback: [...current.feedback, stored] }); }
@@ -401,6 +437,7 @@ export function App() {
   const activeFeedback = feedbackViews(session).filter((entry) => !entry.stale);
   const openQuote = (answer: Answer) => { setQuotedAnswer(answer); setView("explanation"); };
   const disagree = (feedbackId: string, reason: string) => {
+    invalidateTutor();
     try { setSession(transition(session, { type: "disagree", feedbackId, reason, createdAt: new Date().toISOString() })); setActionError(null); }
     catch (error) { setActionError(error instanceof Error ? error.message : "disagree-failed"); }
   };
@@ -526,7 +563,10 @@ export function App() {
           </section>}
           <section className="card notes-card"><h2>{copy.notesTitle}</h2><label htmlFor="notes">{copy.notesLabel}</label>
             <textarea id="notes" rows={5} value={session.notes} onChange={(event) => {
-              if ([...event.target.value].length <= 8000) setSession(transition(session, { type: "set-notes", notes: event.target.value }));
+              if ([...event.target.value].length <= 8000) {
+                if (event.target.value !== session.notes) invalidateTutor();
+                setSession(transition(session, { type: "set-notes", notes: event.target.value }));
+              }
             }} /><p className="hint">{copy.notesHint}</p></section>
           {activeFeedback.map(({ feedback }) => <FeedbackPanel key={feedback.id} feedback={feedback} session={session} topic={topicFor(session.topicVersion, feedback.evidenceLocale ?? "zh-CN")} pack={pack}
             onQuote={openQuote} onDisagree={(reason) => disagree(feedback.id, reason)} />)}

@@ -9,6 +9,7 @@ export type PostTutorInput = {
   includeNotes?: boolean;
   locale?: Locale;
   guard: TutorRequestGuard;
+  request?: TutorRequest;
   fetchImpl?: typeof fetch;
 };
 
@@ -28,19 +29,26 @@ export type PostTutorOutcome =
 
 /** Call invalidate for input, snapshot, step, or clarification-round changes. */
 export class TutorRequestGuard {
-  private pending: { requestId: string; contentRevision: number; controller: AbortController } | null = null;
+  private pending: { requestId: string; contentRevision: number; controller: AbortController; sent: boolean } | null = null;
 
   start(contentRevision: number): TutorRequest | null {
     if (this.pending?.contentRevision === contentRevision) return null;
     this.invalidate();
     const controller = new AbortController();
     const requestId = crypto.randomUUID();
-    this.pending = { requestId, contentRevision, controller };
+    this.pending = { requestId, contentRevision, controller, sent: false };
     return { requestId, signal: controller.signal };
   }
 
   accept(requestId: string, contentRevision: number): boolean {
     return this.pending?.requestId === requestId && this.pending.contentRevision === contentRevision;
+  }
+
+  claim(requestId: string, contentRevision: number): boolean {
+    const pending = this.pending;
+    if (!pending || pending.requestId !== requestId || pending.contentRevision !== contentRevision || pending.sent) return false;
+    pending.sent = true;
+    return true;
   }
 
   finish(requestId: string): void {
@@ -99,8 +107,9 @@ function httpOutcome(status: number, body: unknown, locale: Locale): PostTutorOu
 
 export async function postTutor(session: LearningSession, input: PostTutorInput): Promise<PostTutorOutcome | null> {
   const locale = legacyLocale(input.locale);
-  const token = input.guard.start(session.contentRevision);
+  const token = input.request ?? input.guard.start(session.contentRevision);
   if (!token) return null;
+  if (token.signal.aborted || !input.guard.claim(token.requestId, session.contentRevision)) return { status: "aborted" };
   const includeNotes = input.includeNotes === true;
   const fetchImpl = input.fetchImpl ?? fetch;
   const body = {

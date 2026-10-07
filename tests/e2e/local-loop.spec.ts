@@ -2,7 +2,11 @@ import { expect, test } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:net";
-import { installRapidRevisionTrace, persistRapidRevisionTrace } from "./helpers/rapid-trace";
+import { installRapidRevisionTrace, persistFailedRapidRevisionTrace, persistRapidRevisionTrace } from "./helpers/rapid-trace";
+
+test.afterEach(async ({ page }, testInfo) => {
+  await persistFailedRapidRevisionTrace(page, testInfo);
+});
 
 async function freeLocalPort(): Promise<number> {
   const server = createServer();

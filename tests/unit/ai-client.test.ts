@@ -82,6 +82,24 @@ test("postTutor omits a second fetch for the same revision and defaults includeN
   await expect(first).resolves.toEqual({ status: "accepted", requestId: payload.requestId, contentRevision: 3, result: okResult });
 });
 
+test("a reserved auth token can be sent only once and cannot be revived after invalidation", async () => {
+  const guard = new TutorRequestGuard();
+  const request = guard.start(3)!;
+  let release!: (response: Response) => void;
+  let calls = 0;
+  const fetchImpl = vi.fn<typeof fetch>(() => ++calls === 1
+    ? new Promise((resolve) => { release = resolve; }) : Promise.resolve(tutorResponse(503)));
+  const pending = postTutor(sessionWithNotes, { sendConsent: true, guard, request, fetchImpl });
+  expect(await postTutor(sessionWithNotes, { sendConsent: true, guard, request, fetchImpl })).toEqual({ status: "aborted" });
+  expect(fetchImpl).toHaveBeenCalledTimes(1);
+  guard.invalidate();
+  const payload = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body));
+  release(tutorResponse(200, { requestId: payload.requestId, contentRevision: 3, result: okResult }));
+  await expect(pending).resolves.toEqual({ status: "aborted" });
+  expect(await postTutor(sessionWithNotes, { sendConsent: true, guard, request, fetchImpl })).toEqual({ status: "aborted" });
+  expect(fetchImpl).toHaveBeenCalledTimes(1);
+});
+
 test("postTutor sends notes only when includeNotes is true", async () => {
   const fetchImpl = vi.fn<typeof fetch>(async () => tutorResponse(503));
   await postTutor(sessionWithNotes, { sendConsent: true, includeNotes: true, guard: new TutorRequestGuard(), fetchImpl });
