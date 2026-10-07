@@ -20,13 +20,13 @@ npm run experiment:test
 npm run build:offline
 ```
 
-`npm test` uses local test doubles and isolated temporary SQLite databases; it does not call a real model. `npm run experiment:test` requires [uv](https://docs.astral.sh/uv/getting-started/installation/) and the locked Python/NumPy environment. Prepare it without changing the lockfile:
+`npm test` uses local test doubles and isolated temporary SQLite databases; it does not call a real model. Its overall-timeout diagnostic launches Chromium, so install the project-pinned browsers before running it (the browser setup below covers this). `npm run experiment:test` requires [uv](https://docs.astral.sh/uv/getting-started/installation/) and the locked Python/NumPy environment. Prepare it without changing the lockfile:
 
 ```sh
 uv sync --project tools/experiment --frozen --python 3.12.13
 ```
 
-For browser checks, install the project-pinned browsers once, then run the suite (which builds the offline app and starts its own port 4173 preview):
+For `npm test` and browser checks, install the project-pinned browsers once; the e2e suite builds the offline app and starts its own port 4173 preview:
 
 ```sh
 npx playwright install chromium webkit

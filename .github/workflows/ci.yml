@@ -21,6 +21,7 @@ jobs:
       - run: sudo apt-get update
       - run: sudo apt-get install -y ffmpeg
       - run: uv sync --project tools/experiment --frozen --python 3.12.13
+      - run: npx playwright install --with-deps chromium webkit
       - run: npm run experiment:test
       - run: npm run typecheck
       - run: npm test
@@ -29,7 +30,6 @@ jobs:
         run: npm run eval:check
       - name: Fixture eval (deterministic, not a paid model)
         run: EVAL_RUN=true EVAL_PROVIDER=fixture EVAL_BUDGET=42 EVAL_RUN_DIR=tmp-eval-run npm run eval:run
-      - run: npx playwright install --with-deps chromium webkit
       - name: Browser e2e
         id: e2e
         run: npm run test:e2e
