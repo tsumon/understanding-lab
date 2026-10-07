@@ -2,9 +2,9 @@
 
 更新：2026-10-07。本文是实时接手入口；完整需求见[设计](superpowers/specs/2026-09-26-understanding-lab-design.md)，执行步骤见[实施计划](superpowers/plans/2026-09-26-understanding-lab.md)。
 
-**恢复检查点：** 双语计划任务 1–4 和最终审阅均完成。Astra 的两项 P2 已由 Sol 在 `cb18bdb` 修复，并经一次独立定向复核确认全部解决、没有新增阻塞。本机 264 项测试、类型/离线构建/评测检查及三配置浏览器 71 通过、13 原有跳过。最新私有备份分支是 `codex/bilingual-ui-wip-2026-10-03`；默认分支仍为 `4726179`，尚未合并或公开。新 CI 因浏览器安装顺序失败：超时诊断需要 Chromium，但 CI 到后续步骤才安装。Luna 在 `7d43b64` 完成最小流水线/开发说明修正，独立 Sol 审阅通过；没有改业务和断言。接续核实该修正的新 CI，再刷新审计、fast-forward 默认分支和公开。之前 `d6ff132` 的 [CI](https://github.com/tsumon/understanding-lab/actions/runs/37322835997) 失败必须保留：iPhone WebKit 笔记输入超时且无诊断文件。本轮诊断修复不证明业务根因修复，历史故障仍开放。最新证据见 [2026-10-07](verification/2026-10-07.md)。勿重做已完成任务、截图或全量审阅。
+**恢复检查点：已公开源码。** 双语计划任务 1–4、最终 Astra 审阅、两项 P2 修复及独立定向复核均完成；CI 浏览器准备顺序也经 Luna 修正和 Sol 审阅。`7d4ef9b` 的 [CI](https://github.com/tsumon/understanding-lab/actions/runs/37569446944) 全通过：264 项测试、6 项数值测试、类型/离线构建/评测及浏览器 71 通过、13 原有跳过。默认分支 `codex/understanding-lab-mvp` 已普通 fast-forward 到该提交，精确远端 SHA 核对一致，随后 GitHub 独立 API 读取确认 public。WIP 分支保留备份。此段属于后续文档检查点，不改变已验证代码；新的默认分支/文档 CI 应另查状态。最新证据见 [2026-10-07](verification/2026-10-07.md)。历史 WebKit 故障、真实模型/人类教学验收仍开放，不代表正式服务上线。不要重做已有任务、截图或审阅。
 
-最新范围变更：用户已确认“完整中英双语＋英文展示型 README＋检查通过后公开”，并委托选择开源方案。[双语与公开设计](superpowers/specs/2026-10-01-bilingual-public-release-design.md)经一次 Astra 只读架构检查，用户已回复“继续”批准执行；按[新增实施计划](superpowers/plans/2026-10-01-bilingual-public-release.md)推进。英文课程、语言来源 / AI 接口与双语界面均已完成并独立审阅；README 改版和公开切换仍在后续门槛。不要重做已有成果，也不要把此前中文首版约束当成拒绝英文支持的理由；新授权不包含付费调用或公共部署。
+最新范围变更：用户已确认“完整中英双语＋英文展示型 README＋检查通过后公开”，并委托选择开源方案。[双语与公开设计](superpowers/specs/2026-10-01-bilingual-public-release-design.md)及[新增实施计划](superpowers/plans/2026-10-01-bilingual-public-release.md)已执行完成，采用 MIT 原创作品授权与独立第三方说明。英文课程、语言来源 / AI 接口、双语界面、README 和源码公开均完成并审阅。不要重做已有成果，也不要把此前中文首版约束当成拒绝英文支持的理由；新授权不包含付费调用或公共部署。
 
 ## 1. 这个项目是什么、要什么
 
@@ -38,7 +38,7 @@ Luna 在写报告和提交前遇到额度限制，未重试其他 agent；控制
 
 最终修复 `cb18bdb`：认证前建立贯穿调用/响应的操作标识，步骤、内容、退出及会话/账号替换使其失效，语言切换保持原操作；令牌只能提交一次，旧完成操作不清除新请求。超时诊断移至独立 `afterEach`，页面取证最多三秒，新增确定性整体超时夹具。保留原断言、合成文本白名单和 80 条上限。认证用例先复现四项真实失败，再通过 27 项定向测试；超时夹具先证明缺文件，再验证两项诊断测试。完整测试 35 文件 264 项通过，控制器整体验证见当日记录。独立 Sol 定向复核确认两项均已解决、没有新增缺陷；无需再派发最终审阅。
 
-下一步：核实新私有备份的精确 SHA 和 CI，刷新历史/日志/附件检查，完成默认分支普通 fast-forward，再按已批准方案公开。历史 WebKit 业务故障仍须保留开放状态，诊断修复不等于业务根因修复。禁止付费调用、强推、改历史或删除日志。README 的稳定分支 clone/CI 链接以完成 fast-forward 为发布前提。
+源码公开完成后，下一工程优先项是 WebKit 草稿/显示间歇故障的因果定位：保留真实失败，核对有界诊断证据，不用重跑绿灯关闭问题。远端真实失败附件交付尚未实测，本地整体超时取证已验证；浏览器崩溃时仍可能无法读取页面。其后是真实供应商 runner/预算、英文材料人类复核、OAuth、真机语音和学习者观察，需分别取得必要授权与真实证据。禁止付费调用、强推、改历史或删除日志。README 的默认分支 clone/CI 链接现在指向已合并代码。
 
 ### 最新双语 UI 验证（优先读此段）
 
@@ -124,15 +124,16 @@ Luna 在写报告和提交前遇到额度限制，未重试其他 agent；控制
 
 ## 5. How to 从 GitHub 恢复开发
 
-私有仓库：[tsumon/understanding-lab](https://github.com/tsumon/understanding-lab)。继续双语界面使用分支 `codex/bilingual-ui-wip-2026-10-03`；`codex/understanding-lab-mvp` 是此前任务 2 检查点，不包含后续 WIP。原本机路径 `/Applications/understanding-lab` 不是运行必需路径。
+公开仓库：[tsumon/understanding-lab](https://github.com/tsumon/understanding-lab)。从默认分支 `codex/understanding-lab-mvp` 接续；双语 WIP 分支仅保留备份，不是最新恢复入口。原本机路径 `/Applications/understanding-lab` 不是运行必需路径。
 
-需要仓库读取权限及 Node 22.23.2 / npm 10.9.8。在新的空目录克隆，不覆盖已有工作：
+使用 Node 22.23.2 / npm 10.9.8。在新的空目录克隆，不覆盖已有工作；测试包含真实浏览器诊断，须先安装锁定浏览器：
 
 ```sh
-git clone --branch codex/bilingual-ui-wip-2026-10-03 https://github.com/tsumon/understanding-lab.git
+git clone --branch codex/understanding-lab-mvp https://github.com/tsumon/understanding-lab.git
 cd understanding-lab
 git status --short --branch
 npm ci
+npx playwright install chromium webkit
 npm test
 npm run build:offline
 ```
