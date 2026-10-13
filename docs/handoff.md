@@ -1,8 +1,10 @@
 # 项目交接：理解实验室
 
-更新：2026-10-07。本文是实时接手入口；完整需求见[设计](superpowers/specs/2026-09-26-understanding-lab-design.md)，执行步骤见[实施计划](superpowers/plans/2026-09-26-understanding-lab.md)。
+更新：2026-10-13。本文是实时接手入口；完整需求见[设计](superpowers/specs/2026-09-26-understanding-lab-design.md)，执行步骤见[实施计划](superpowers/plans/2026-09-26-understanding-lab.md)。
 
-**恢复检查点：已公开源码。** 双语计划任务 1–4、最终 Astra 审阅、两项 P2 修复及独立定向复核均完成；CI 浏览器准备顺序也经 Luna 修正和 Sol 审阅。默认分支 `codex/understanding-lab-mvp` 的 `e52cfec` [CI](https://github.com/tsumon/understanding-lab/actions/runs/37570142289) 已通过：264 项测试、6 项数值测试、类型/离线构建/评测及浏览器 71 通过、13 原有跳过。GitHub API 再次确认 public；WIP 分支仅保留备份。本轮只更新文档，后续提交的 CI 另查。最新证据见 [2026-10-07](verification/2026-10-07.md)。历史 WebKit 故障、真实模型/人类教学验收仍开放，不代表正式服务上线。不要重做已有任务、截图或审阅。
+**恢复检查点：已整合云环境分叉与已公开版本。** 2026-10-13 的 Git 读取发现默认分支已到 `d3d0c9f`，包含完整双语、README、许可证及后续认证/诊断修复；云环境从旧快照 `4726179` 另行产生了 `58a0af2`。本次保留两条提交历史，以远端已审阅版本为集成基础，补入草稿重新挂载恢复、组件卸载时取消教学请求、历史证据原语言展示和补充回归。此次整合由主助手自查，尚无独立审阅结论；它与原双语范围的独立审阅记录分开。最新证据见 [2026-10-13](verification/2026-10-13.md)。
+
+源码公开及此前 CI 成功由 [2026-10-07 记录](verification/2026-10-07.md)证实：`e52cfec` 的 CI 为 264 项单元/集成、6 项数值、浏览器 71 通过/13 跳过。本实例 GitHub REST/GraphQL API 返回 403，尚不能复核当前可见性、新 CI 或附件；不要把历史结果称为此次提交的 CI 结果。历史 WebKit 故障、真实模型/人类教学验收仍开放，不代表正式服务上线。不要重做已完成的 README、截图、许可证或原范围审阅。
 
 最新范围变更：用户已确认“完整中英双语＋英文展示型 README＋检查通过后公开”，并委托选择开源方案。[双语与公开设计](superpowers/specs/2026-10-01-bilingual-public-release-design.md)及[新增实施计划](superpowers/plans/2026-10-01-bilingual-public-release.md)已执行完成，采用 MIT 原创作品授权与独立第三方说明。英文课程、语言来源 / AI 接口、双语界面、README 和源码公开均完成并审阅。不要重做已有成果，也不要把此前中文首版约束当成拒绝英文支持的理由；新授权不包含付费调用或公共部署。
 
@@ -144,6 +146,8 @@ npm run build:offline
 
 原机器继续时先检查 `git status --short --branch`、`git log -5 --oneline`。保留并辨认未提交修改；不 `reset --hard`、不重新初始化、不为恢复上下文重做已完成任务。
 
+本次托管云环境每个 shell 先 `source /workspace/.tools/onboarding/env.sh`。浏览器相关命令使用 `/workspace/.tools/onboarding/with-browser-libs.sh npm test -- --maxWorkers=2` 或 `/workspace/.tools/onboarding/with-browser-libs.sh npm run test:e2e -- --workers=2`；包装器使用工作区中的库，保留浏览器依赖校验，需平台支持的沙箱提权。`npm test` 也包含实际启动 Chromium 的超时诊断，不能只为 e2e 准备浏览器。完整安装与启动说明保存在环境配置草稿，保存不等于发布；新任务恢复尚未独立验证。机器专用脚本不在 Git 中。
+
 常见问题：
 
 - `listen EPERM`：执行环境禁止本机监听。取得测试权限后重跑，勿改断言伪装通过。
@@ -157,6 +161,8 @@ npm run build:offline
 12 项工程计划已有实现与审阅记录。当前补齐回归与可执行发布门槛，不扩展新主题。
 
 双语与英文 README / 开源准备四项计划已经完成。保持旧记录缺少语言字段时按中文解析而不批量改写；新记录单独保存问题、证据和反馈语言。继续开发以默认分支 `codex/understanding-lab-mvp` 为入口，不切回旧 WIP 分支、不重做审阅或截图。仓库现已公开，新提交及 CI 附件必须按公开内容核查；不存在仓库内的“私有备份分支”。
+
+先检查 `codex/cloud-bilingual-integration` 的整合检查点、当前 Git 差异及 [2026-10-13 验证](verification/2026-10-13.md)，完成此次小范围增量审阅与新 CI 核对，再集成到默认分支。公开备份使用与本地双亲合并相同的文件树；原 `58a0af2` 及合并历史仅留在本地 `work`，避免额外公开该本地 Git 身份的个人邮箱。原双语/公开范围的独立审阅已完成，此次合并与补充修复不能冒称已经过同一次审阅。2026-10-12 的云环境验证仅对应分叉的本地提交，不是当时远端的状态。
 
 2026-10-07 后续诊断已重新读取两次真实失败日志，区分“返回后解释输入框为空”与“开始后等待笔记输入超时”。新建匿名 iPhone WebKit 的一次快速刷新观测通过，记录证明这一次按步骤草稿写入并恢复，但没有复现根因，未修改业务代码。详见[本次诊断](verification/2026-10-07.md#post-publication-webkit-diagnosis)。无需原机器的临时探针即可继续；现有正式快速路径和失败取证辅助函数已在仓库中。
 

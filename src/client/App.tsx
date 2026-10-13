@@ -19,9 +19,6 @@ import type { Locale } from "../domain/locale";
 import "./styles.css";
 
 const draftId = "current";
-const saved = readEnvelope(draftId);
-const damaged = saved ? null : rawDraftForExport(draftId);
-const savedConflict = readConflict(draftId);
 const initialExploration: Exploration = { config: { seed: 17, n: 40, noise: 0.1, degree: 3 }, frozen: null, revealed: false, contaminated: false };
 type View = "material" | "experiment" | "explanation";
 type SyncState = "local" | "syncing" | "synced" | "conflict" | "offline" | "deleted";
@@ -41,6 +38,11 @@ function download(name: string, content: string, type: string) {
 
 export function App() {
   const { locale, setLocale, copy } = useLocale();
+  const [initial] = useState(() => {
+    const saved = readEnvelope(draftId);
+    return { saved, damaged: saved ? null : rawDraftForExport(draftId), savedConflict: readConflict(draftId) };
+  });
+  const { saved, damaged, savedConflict } = initial;
   const [started, setStarted] = useState(Boolean(saved));
   const [session, setSession] = useState<LearningSession>(saved?.session ?? newSession(draftId));
   const [exploration, setExploration] = useState<Exploration>(saved?.exploration ?? initialExploration);
@@ -92,7 +94,7 @@ export function App() {
     fetch("/experiments/overfitting.v1.json").then((response) => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();
-    }).then((data) => setPack(parsePack(data))).catch((error: unknown) => setPackError(error instanceof Error ? error.message : "unknown"));
+    }).then((data) => setPack(parsePack(data))).catch(() => setPackError("unknown"));
   }, []);
 
   const envelopeOf = (nextSession = session, nextDrafts = drafts, nextText = text, nextBinding = binding, nextAutoSave = autoSave, nextPending = pendingSave): DraftEnvelope => ({
@@ -114,6 +116,7 @@ export function App() {
   useEffect(() => {
     invalidateTutor();
   }, [session.id, session.contentRevision, session.step, session.clarificationRound, binding?.ownerId]);
+  useEffect(() => () => tutorGuard.current.invalidate(), []);
 
   const loadDraft = (draft: DraftEnvelope, conflictCopy: ConflictCopy | null, owner: string | null) => {
     invalidateTutor();

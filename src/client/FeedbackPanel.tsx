@@ -2,6 +2,8 @@ import { useState } from "react";
 import { RECOVERED_FEEDBACK_MODEL, type Answer, type LearningSession, type StoredFeedback } from "../domain/contracts";
 import { metricFor, type ExperimentPack } from "../experiment/catalog";
 import type { Topic } from "../tutor/verify";
+import { topicFor } from "../content/topics";
+import { legacyLocale } from "../domain/locale";
 import { useLocale } from "./LocaleProvider";
 
 type Props = {
@@ -13,8 +15,10 @@ type Props = {
   onDisagree: (reason: string) => void;
 };
 
-export function FeedbackPanel({ feedback, session, topic, pack, onQuote, onDisagree }: Props) {
+export function FeedbackPanel({ feedback, session, pack, onQuote, onDisagree }: Props) {
   const { copy } = useLocale();
+  const evidenceLocale = legacyLocale(feedback.evidenceLocale);
+  const topic = topicFor(session.topicVersion, evidenceLocale);
   const metricLabels = { trainMse: copy.trainMse, validationMse: copy.validationMse, testMse: copy.testMse };
   const [editingDisagreement, setEditingDisagreement] = useState(false);
   const [reason, setReason] = useState("");
@@ -48,6 +52,7 @@ export function FeedbackPanel({ feedback, session, topic, pack, onQuote, onDisag
       return <li key={`${source.topicVersion}:${source.paragraphId}:${index}`}>
         {approvedUrl ? <a href={approvedUrl} target="_blank" rel="noreferrer noopener">{copy.materialSource(source.paragraphId)}</a>
           : <span>{copy.materialSource(source.paragraphId)} ({copy.unavailableLink})</span>}
+        {paragraph && <blockquote lang={evidenceLocale}>{paragraph.text}</blockquote>}
       </li>;
     })}</ul></div>}
 

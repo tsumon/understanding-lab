@@ -1,6 +1,6 @@
 import type { LearningSession, Step } from "../domain/contracts";
 import { loadCase, metricFor, type ExperimentPack } from "../experiment/catalog";
-import { STEPS, questionForAnswer } from "../domain/session";
+import { STEPS, questionForAnswer, questionLocaleFor } from "../domain/session";
 import { useLocale } from "./LocaleProvider";
 
 export function SummaryPanel({ session, pack }: { session: LearningSession; pack: ExperimentPack | null }) {
@@ -23,7 +23,7 @@ export function SummaryPanel({ session, pack }: { session: LearningSession; pack
               {snapshot.testRevealed ? `${copy.comma}${copy.testMse} ${metricFor(pack!, snapshot, "testMse").toFixed(4)}` : `${copy.comma}${copy.testNotRevealed}`}</> : copy.packUnreadable}
             {snapshot.testContaminated ? `${copy.semicolon}${copy.laterContaminated}` : ""}{copy.fullStop}</p>;
         }) : latest.filter((answer) => !latest.some((other) => other.id === answer.id && other.revision > answer.revision)).reverse().map((answer) =>
-          <p key={answer.id}><span lang={answer.questionLocale ?? "zh-CN"}>{questionForAnswer(session, answer)}</span><br /><q>{answer.text}</q></p>)}
+          <p key={answer.id}><span lang={questionLocaleFor(session, answer.questionId, answer.questionLocale)}>{questionForAnswer(session, answer)}</span><br /><q>{answer.text}</q></p>)}
       </li>;
     })}</ol>
     {session.notes && <div><h3>{copy.notesTitle}</h3><p className="preserve-breaks">{session.notes}</p></div>}

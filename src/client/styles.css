@@ -39,6 +39,7 @@ a { overflow-wrap: anywhere; color: var(--sea); }
 .app-shell { max-width: 1440px; margin: 0 auto; padding: 1.2rem clamp(1rem, 3vw, 2.5rem) 3rem; }
 .page-header { margin-bottom: 1.4rem; padding-bottom: 1rem; border-bottom: 1px solid var(--rule); }
 .page-header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+.feedback-card blockquote { margin: .5rem 0; padding-left: .75rem; border-left: 3px solid var(--rule); overflow-wrap: anywhere; }
 .eyebrow { font-size: 0.9rem; font-weight: 700; color: var(--sea); margin: 0 0 0.35rem; letter-spacing: 0.04em; }
 .offline-status, .save-status { color: var(--ink-mute); font-size: 0.9rem; }
 .offline-status button { margin-left: 0.7rem; }

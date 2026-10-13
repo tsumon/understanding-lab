@@ -1,0 +1,114 @@
+import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { createServer } from "node:net";
+
+test.use({ locale: "en-US" });
+const draftKey = "understanding-lab:v1:anonymous:current";
+
+test("English learning loop preserves drafts, consent, experiments and history through language switches", async ({ page, isMobile }) => {
+  const privateRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/") && request.method() !== "GET") privateRequests.push(request.url());
+  });
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await page.getByRole("button", { name: "Start learning" }).click();
+  const input = page.getByRole("textbox", { name: "Your explanation" });
+  await input.fill("A good training fit may follow noise.");
+  await page.getByLabel("My notes (up to 8000 characters)").fill("Private original notes 私人笔记");
+  await page.getByLabel("Include private notes for the model").check();
+  const storedBefore = await page.evaluate((key) => localStorage.getItem(key), draftKey);
+  const selector = page.getByRole("combobox", { name: "Language / 语言" });
+  await selector.focus();
+  await expect(selector).toBeFocused();
+  await selector.press("ArrowDown");
+  await selector.press("Enter");
+  await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
+  await expect(page.getByRole("textbox", { name: "我的解释" })).toHaveValue("A good training fit may follow noise.");
+  await expect(page.getByLabel("把私人笔记一并发送给模型")).toBeChecked();
+  expect(await page.evaluate((key) => localStorage.getItem(key), draftKey)).toBe(storedBefore);
+  await selector.selectOption("en");
+  await page.getByRole("button", { name: "Confirm this explanation" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Skip as unverified" }).click();
+  await page.getByRole("button", { name: "Skip as unverified" }).click();
+  await input.fill("Training error may fall while validation error rises.");
+  await page.getByRole("button", { name: "Confirm this explanation" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel("Polynomial degree").selectOption("8");
+  await page.getByRole("button", { name: "Freeze current selection" }).click();
+  await page.getByRole("button", { name: "Reveal final test result" }).click();
+  const experimentBefore = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).exploration, draftKey);
+  await selector.selectOption("zh-CN");
+  await expect(page.getByLabel("多项式阶数")).toHaveValue("8");
+  await expect(page.getByText(/测试 MSE：/)).toBeVisible();
+  await selector.selectOption("en");
+  expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).exploration, draftKey)).toEqual(experimentBefore);
+  await page.getByRole("button", { name: "Record experiment observation" }).click();
+  if (isMobile) await page.getByRole("button", { name: "Explanation", exact: true }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await input.fill("Unseen data matters more than training fit alone.");
+  await page.getByRole("button", { name: "Confirm this explanation" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await input.fill("Repeated test-set selection contaminates the evidence.");
+  await page.getByRole("button", { name: "Confirm this explanation" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  const summary = page.getByRole("region", { name: "Attempt summary" });
+  await expect(summary.getByText("A good training fit may follow noise.")).toBeVisible();
+  await expect(summary.getByText("Clarify: Unverified")).toBeVisible();
+  await expect(summary.getByText(/Training MSE/)).toBeVisible();
+  const violations = (await new AxeBuilder({ page }).analyze()).violations.filter((item) => item.impact === "critical" || item.impact === "serious");
+  expect(violations).toEqual([]);
+  await selector.selectOption("zh-CN");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
+  await expect(selector).toHaveValue("zh-CN");
+  const history = page.getByRole("region", { name: "本次小结" });
+  await expect(history.getByText("How would you explain very low training error but poor performance on new data?")).toHaveAttribute("lang", "en");
+  await expect(page.getByLabel("我的笔记（最多 8000 字）")).toHaveValue("Private original notes 私人笔记");
+  expect(privateRequests).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("cached English and Chinese material can switch and reload after the origin stops", async ({ page, isMobile }) => {
+  const probe = createServer();
+  await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
+  const address = probe.address();
+  if (!address || typeof address === "string") throw new Error("No local port");
+  const port = address.port;
+  await new Promise<void>((resolve) => probe.close(() => resolve()));
+  const origin = "http://127.0.0.1:" + port;
+  const server = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "preview", "--host", "127.0.0.1", "--port", String(port)], { cwd: process.cwd(), stdio: "ignore" });
+  try {
+    await expect.poll(() => fetch(origin).then((response) => response.status).catch(() => 0), { timeout: 10000 }).toBe(200);
+    await page.goto(origin);
+    await expect(page.getByText("Learning material and experiment data are cached for offline use")).toBeVisible({ timeout: 15000 });
+    await page.getByRole("button", { name: "Start learning" }).click();
+    await page.getByRole("textbox", { name: "Your explanation" }).fill("Offline original draft");
+    server.kill("SIGTERM");
+    await once(server, "exit");
+    await expect.poll(() => fetch(origin).then((response) => response.status).catch(() => 0)).toBe(0);
+    await page.reload();
+    await expect(page.getByRole("textbox", { name: "Your explanation" })).toHaveValue("Offline original draft");
+    await page.getByLabel("Language / 语言").selectOption("zh-CN");
+    if (isMobile) await page.getByRole("button", { name: "材料", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "主题材料" })).toBeVisible();
+    await expect(page.getByText(/模型可能学到规律，也可能追随样本噪声/)).toBeVisible();
+    await page.getByLabel("Language / 语言").selectOption("en");
+    await expect(page.getByRole("heading", { name: "Learning material" })).toBeVisible();
+    await expect(page.getByText(/A model may learn patterns, or it may follow noise/)).toBeVisible();
+    await expect(page.locator(".material-view .status")).toHaveText("Draft content, awaiting human review");
+    if (isMobile) await page.getByRole("button", { name: "Explanation", exact: true }).click();
+    await page.getByRole("button", { name: "Try the experiment first" }).click();
+    await page.getByLabel("Polynomial degree").selectOption("12");
+    await expect(page.getByRole("img", { name: /Numerical chart:/ })).toBeVisible();
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    if (isMobile) await page.getByRole("button", { name: "Experiment", exact: true }).click();
+    await expect(page.getByLabel("Polynomial degree")).toHaveValue("12");
+  } finally {
+    if (server.exitCode === null && server.signalCode === null) { server.kill("SIGTERM"); await once(server, "exit"); }
+  }
+});
