@@ -29,26 +29,50 @@ export async function installRapidRevisionTrace(page: Page): Promise<void> {
         };
       } catch { return { draft: "<unreadable>", answers: [] }; }
     };
+    const storedDraft = () => {
+      try { return answersFrom(localStorage.getItem(key)); }
+      catch { return { draft: "<unreadable>", answers: [] }; }
+    };
+    const fieldSnapshot = (id: "answer-text" | "notes") => {
+      const element = document.getElementById(id);
+      if (!(element instanceof HTMLTextAreaElement)) return { present: false, visible: false, value: "<missing>" };
+      const rect = element.getBoundingClientRect();
+      const visibility = getComputedStyle(element).visibility;
+      return {
+        present: true,
+        visible: rect.width > 0 && rect.height > 0 && visibility !== "hidden" && visibility !== "collapse",
+        value: syntheticText(element.value),
+      };
+    };
     const record = (kind: string, details: object) => {
       if (trace.length < 80) trace.push({ at: Math.round(performance.now()), kind, ...details });
       else dropped += 1;
       try { sessionStorage.setItem(traceKey, JSON.stringify({ entries: trace, dropped })); }
       catch { /* Keep the in-memory trace if diagnostic storage is unavailable. */ }
     };
-    Object.defineProperty(window, "__rapidRevisionTrace", { value: () => ({ entries: trace, dropped }) });
+    // Read current DOM/storage only when evidence is requested, not on the timed input path.
+    Object.defineProperty(window, "__rapidRevisionTrace", { value: () => ({
+      entries: trace, dropped,
+      snapshot: { answer: fieldSnapshot("answer-text"), notes: fieldSnapshot("notes"), stored: storedDraft() },
+    }) });
     for (const kind of ["input", "change", "compositionstart", "compositionend"]) {
       document.addEventListener(kind, (event) => {
-        if (event.target instanceof HTMLTextAreaElement) record(kind, { value: syntheticText(event.target.value) });
+        if (event.target instanceof HTMLTextAreaElement) record(kind, {
+          field: ["answer-text", "notes"].includes(event.target.id) ? event.target.id : "<other>",
+          value: syntheticText(event.target.value),
+        });
       }, true);
     }
     document.addEventListener("click", (event) => {
       const button = event.target instanceof Element ? event.target.closest("button") : null;
       const label = button?.textContent?.trim();
       if (!label || !["开始学习", "确认这段解释", "继续下一步", "跳过，标记未验证", "讲解", "先做实验", "返回上一步", "实验"].includes(label)) return;
-      let stored: ReturnType<typeof answersFrom>;
-      try { stored = answersFrom(localStorage.getItem(key)); }
-      catch { stored = { draft: "<unreadable>", answers: [] }; }
-      record("click", { label, value: syntheticText(document.querySelector("textarea")?.value), stored });
+      const answer = document.getElementById("answer-text");
+      record("click", {
+        label, field: "answer-text",
+        value: answer instanceof HTMLTextAreaElement ? syntheticText(answer.value) : "<missing>",
+        stored: storedDraft(),
+      });
     }, true);
     const originalSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function(storageKey, value) {

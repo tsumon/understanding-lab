@@ -12,7 +12,7 @@ test("keeps a bounded trace after its original failure", async ({}, testInfo) =>
 
 test("overall timeout still leaves a bounded trace", async ({ page }, testInfo) => {
   await installRapidRevisionTrace(page);
-  await page.goto("data:text/html,<textarea></textarea>");
+  await page.goto('data:text/html,<textarea id="answer-text"></textarea>');
   await page.locator("textarea").fill("第一版解释");
   const trace = await page.evaluate(() => (window as Window & { __rapidRevisionTrace?: () => { entries: object[] } }).__rapidRevisionTrace?.());
   expect(trace?.entries.length).toBeGreaterThan(0);

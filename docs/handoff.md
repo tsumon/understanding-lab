@@ -1,8 +1,8 @@
 # 项目交接：理解实验室
 
-更新：2026-10-07。本文是实时接手入口；完整需求见[设计](superpowers/specs/2026-09-26-understanding-lab-design.md)，执行步骤见[实施计划](superpowers/plans/2026-09-26-understanding-lab.md)。
+更新：2026-10-15。本文是实时接手入口；完整需求见[设计](superpowers/specs/2026-09-26-understanding-lab-design.md)，执行步骤见[实施计划](superpowers/plans/2026-09-26-understanding-lab.md)。
 
-**恢复检查点：已公开源码。** 双语计划任务 1–4、最终 Astra 审阅、两项 P2 修复及独立定向复核均完成；CI 浏览器准备顺序也经 Luna 修正和 Sol 审阅。默认分支 `codex/understanding-lab-mvp` 的 `e52cfec` [CI](https://github.com/tsumon/understanding-lab/actions/runs/37570142289) 已通过：264 项测试、6 项数值测试、类型/离线构建/评测及浏览器 71 通过、13 原有跳过。GitHub API 再次确认 public；WIP 分支仅保留备份。本轮只更新文档，后续提交的 CI 另查。最新证据见 [2026-10-07](verification/2026-10-07.md)。历史 WebKit 故障、真实模型/人类教学验收仍开放，不代表正式服务上线。不要重做已有任务、截图或审阅。
+**恢复检查点：已公开源码。** 双语计划任务 1–4、最终 Astra 审阅、两项 P2 修复及独立定向复核均完成；CI 浏览器准备顺序也经 Luna 修正和 Sol 审阅。默认分支 `codex/understanding-lab-mvp` 的 `d3d0c9f` [CI](https://github.com/tsumon/understanding-lab/actions/runs/37605183746) 已通过：264 项测试、6 项数值测试、类型/离线构建/评测及浏览器 71 通过、13 原有跳过。GitHub API 再次确认 public；WIP 分支仅保留备份。10-15 修正了诊断记录误取笔记的错误，并增加失败时当前控件/存储快照；本机 265 项测试、类型/离线构建、两条 WebKit 快速路径通过，独立 Sol 审阅无发现，推送后的 CI 另查。最新证据见 [2026-10-15](verification/2026-10-15.md)。历史 WebKit 业务故障、真实模型/人类教学验收仍开放，不代表正式服务上线。不要重做已有任务、截图或审阅。
 
 最新范围变更：用户已确认“完整中英双语＋英文展示型 README＋检查通过后公开”，并委托选择开源方案。[双语与公开设计](superpowers/specs/2026-10-01-bilingual-public-release-design.md)及[新增实施计划](superpowers/plans/2026-10-01-bilingual-public-release.md)已执行完成，采用 MIT 原创作品授权与独立第三方说明。英文课程、语言来源 / AI 接口、双语界面、README 和源码公开均完成并审阅。不要重做已有成果，也不要把此前中文首版约束当成拒绝英文支持的理由；新授权不包含付费调用或公共部署。
 
@@ -159,6 +159,8 @@ npm run build:offline
 双语与英文 README / 开源准备四项计划已经完成。保持旧记录缺少语言字段时按中文解析而不批量改写；新记录单独保存问题、证据和反馈语言。继续开发以默认分支 `codex/understanding-lab-mvp` 为入口，不切回旧 WIP 分支、不重做审阅或截图。仓库现已公开，新提交及 CI 附件必须按公开内容核查；不存在仓库内的“私有备份分支”。
 
 2026-10-07 后续诊断已重新读取两次真实失败日志，区分“返回后解释输入框为空”与“开始后等待笔记输入超时”。新建匿名 iPhone WebKit 的一次快速刷新观测通过，记录证明这一次按步骤草稿写入并恢复，但没有复现根因，未修改业务代码。详见[本次诊断](verification/2026-10-07.md#post-publication-webkit-diagnosis)。无需原机器的临时探针即可继续；现有正式快速路径和失败取证辅助函数已在仓库中。
+
+2026-10-15 已用确定性失败测试修正点击轨迹误取第一个文本框的问题。新轨迹明确区分解释/笔记，取证时的 `snapshot` 可区分控件缺失、隐藏、空值与当前存储不一致；未知字段名/原文仍脱敏，事件上限仍为 80。整体超时落盘测试覆盖新快照。该补丁只改测试诊断，不是草稿丢失的业务修复；不要重复实现。详见[验证记录](verification/2026-10-15.md)。
 
 1. WebKit 间歇回归仍开放：已有带状态断言的诊断路径与不加中间等待的快速路径，不再重复高次数碰运气。后续正常 CI/测试若失败，先保留 `test-results/<用例目录>/rapid-revision-trace.json`；远端查对应 Artifacts 的 `rapid-revision-traces-<run_id>-<run_attempt>`（仅合成轨迹，配置保留 7 天）。上传本身未实测，若无附件先核对是否为该用例且页面可读取。比较第二版捕获旧文本、导航丢失或显示错误，按首次错误边界再做定向实验，不把诊断链路修复当业务问题已解决。
 2. 独立语义门槛已实现并通过 Astra 审阅和本机集成验证，不重做。接口及后续真实验收步骤见 [semantic-release.md](semantic-release.md)。现有 `eval:check` 保持数据集/设计完整性用途，普通 CI 只用合成单测验证拦截逻辑；真实评测 runner 仍需在供应商与预算获准后另行实现，不能直接用 fixture 通过发布。
