@@ -10,6 +10,33 @@
 
 理解实验室是一套本机优先的中英双语 AI 课程，共 12 个交互章节：数据划分、回归、过拟合、优化、分类、神经网络、嵌入、注意力、生成、检索、评测与负责任的部署。先预测、做可复现实验，再迁移与反思；课程记录仅保存在当前浏览器。原版过拟合学习流程仍独立保留。
 
+## 下载即用 · v0.2.0
+
+[版本说明与下载](https://github.com/tsumon/understanding-lab/releases/tag/v0.2.0) · [静态课程压缩包](https://github.com/tsumon/understanding-lab/releases/download/v0.2.0/understanding-lab-0.2.0-static.tar.gz)
+
+1. 下载 `understanding-lab-0.2.0-static.tar.gz` 和同名 `.sha256` 文件，核对校验和后解压。
+2. 安装 **Python 3.9+**，在解压后的 `understanding-lab-0.2.0-static` 目录打开终端，运行：
+
+   ```sh
+   python3 serve.py
+   ```
+
+   Windows 可使用 `py serve.py`。
+3. 打开 **http://127.0.0.1:4173/**。无需 npm、Node.js、账号、API 密钥或后台服务。等待缓存就绪后可离线使用；不要直接双击 `index.html` 以 `file://` 打开。
+
+本次发布范围是**匿名、本机优先的静态课程**，不是托管账号 / AI 服务。升级前分别导出课程记录和原版草稿，保持同一浏览器、主机名及端口，不要清除站点数据。详见[发布与构建检查](docs/release-checklist.md)和[随包使用说明](docs/static-release-readme.md)。
+
+## 课程路线
+
+| 章节 | 内容 |
+| --- | --- |
+| 1–3 | 数据划分与泄漏 · 回归 · 过拟合 |
+| 4–6 | 梯度下降 · 分类 · 神经网络 |
+| 7–9 | 嵌入 · 注意力权重 · 语言模型生成 |
+| 10–12 | 检索增强生成 · 评估 · 负责任的部署 |
+
+每章都有讲解、预测反馈、确定性实验、迁移练习、检测订正、反思与来源；中英双语共用同一份学习记录，先修顺序仅作建议。
+
 ## 界面预览
 
 <p align="center"><a href="assets/readme/desktop-zh-CN.png"><img src="assets/readme/desktop-zh-CN.png" alt="理解实验室简体中文桌面界面" width="720"></a></p>
@@ -62,7 +89,7 @@ npm run experiment:test
 npm run build:offline
 ```
 
-实验数值检查还需要 `uv` 和 Python 3.9+.12.13；环境准备与浏览器检查见[贡献指南（英文）](CONTRIBUTING.md)。CI 使用确定性测试夹具，不调用付费模型。
+实验数值检查还需要 `uv` 和 Python 3.12.13；环境准备与浏览器检查见[贡献指南（英文）](CONTRIBUTING.md)。CI 使用确定性测试夹具，不调用付费模型。
 
 ## 当前范围
 
@@ -70,6 +97,7 @@ npm run build:offline
 
 ## 文档
 
+- [v0.2.0 版本说明](docs/releases/v0.2.0.md)与[发布 / 构建检查](docs/release-checklist.md)
 - [课程计划](docs/course-plan.md)与[平台 / 存储边界](docs/course-platform.md)
 - [入门指南](docs/getting-started.md)（英文）：本机运行及可选服务配置
 - [贡献指南](CONTRIBUTING.md)（英文）：修改、检查和数据处理要求
@@ -79,7 +107,3 @@ npm run build:offline
 ## 许可证
 
 原创项目源代码和文档依照 [MIT 许可证](LICENSE)提供，但依赖和其他材料仍受各自条款约束，详见[第三方声明](THIRD_PARTY_NOTICES.md)。
-
-## 静态发布候选
-
-`0.2.0-rc.1` 仅面向匿名本地课程，不代表账号 / AI 服务生产上线。`npm run package:static` 在 `tmp/releases/` 生成含校验和的归档；解压后只需 Python3.9+ 和浏览器，运行 `python3 serve.py` 并打开打印的回环地址。升级前导出记录，勿清除站点数据。完整命令与门槛见 [发布检查](docs/release-checklist.md)。本地候选不等于已创建 GitHub Release 或部署。

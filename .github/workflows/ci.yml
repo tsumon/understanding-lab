@@ -9,6 +9,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          fetch-depth: 0 # Inspect the exact pre-push version to scope release intent.
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22.23.2"
@@ -41,3 +42,180 @@ jobs:
           path: test-results/**/rapid-revision-trace.json
           retention-days: 7
           if-no-files-found: warn
+      # Build the stable package on PRs too; only the default-branch push can publish.
+      - name: Package stable static release after all checks
+        id: release-package
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ "$(node -p 'JSON.parse(require("fs").readFileSync("package.json", "utf8")).version')" != '0.2.0' ]]; then
+            echo 'This workflow only publishes the approved v0.2.0 release.'
+            exit 0
+          fi
+          test -z "$(git status --porcelain --untracked-files=normal)"
+          npm run package:static
+          mkdir -p tmp/release-upload
+          cp tmp/releases/understanding-lab-0.2.0-static.tar.gz tmp/release-upload/
+          cp tmp/releases/understanding-lab-0.2.0-static.tar.gz.sha256 tmp/release-upload/
+          cp docs/releases/v0.2.0.md tmp/release-upload/RELEASE_NOTES.md
+          echo 'packaged=true' >> "$GITHUB_OUTPUT"
+          # Publish only the actual version transition, not subsequent documentation pushes.
+          if [[ "$EVENT_NAME" == push && "$EVENT_REF" == refs/heads/codex/understanding-lab-mvp ]]; then
+            [[ "$BEFORE_SHA" =~ ^[0-9a-f]{40}$ && "$BEFORE_SHA" != 0000000000000000000000000000000000000000 ]]
+            git cat-file -e "$BEFORE_SHA^{commit}"
+            previous_version=$(git show "${BEFORE_SHA}:package.json" | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>console.log(JSON.parse(s).version))')
+            if [[ "$previous_version" != '0.2.0' ]]; then
+              echo 'ready=true' >> "$GITHUB_OUTPUT"
+            fi
+          fi
+      - name: Upload exact-run release package
+        id: release-upload
+        if: steps.release-package.outputs.packaged == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stable-release-${{ github.sha }}-${{ github.run_attempt }}
+          path: tmp/release-upload/*
+          if-no-files-found: error
+          retention-days: 7
+    outputs:
+      release-ready: ${{ steps.release-package.outputs.ready }}
+      release-artifact-id: ${{ steps.release-upload.outputs.artifact-id }}
+
+  publish-v020:
+    timeout-minutes: 10
+    # Same workflow and exact commit: never a PR, workflow_run, or cross-run artifact.
+    needs: check
+    if: github.event_name == 'push' && github.repository == 'tsumon/understanding-lab' && github.ref == 'refs/heads/codex/understanding-lab-mvp' && needs.check.outputs.release-ready == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: understanding-lab-release-v0.2.0
+      cancel-in-progress: false
+    steps:
+      # Do not check out source or execute repository scripts in this privileged job.
+      - name: Require the checked artifact identity
+        shell: bash
+        env:
+          RELEASE_ARTIFACT_ID: ${{ needs.check.outputs.release-artifact-id }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+      - name: Download the checked package from this run only
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          # Reuse the successful check job artifact when only failed jobs are rerun.
+          artifact-ids: ${{ needs.check.outputs.release-artifact-id }}
+          path: release-files
+          digest-mismatch: error
+      - name: Verify archive, checksum and source identity without executing it
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, re, tarfile
+          root = pathlib.Path('release-files')
+          archive_name = 'understanding-lab-0.2.0-static.tar.gz'
+          expected_files = {archive_name, archive_name + '.sha256', 'RELEASE_NOTES.md'}
+          if {p.name for p in root.iterdir()} != expected_files:
+              raise SystemExit('Unexpected release artifact files')
+          if any(p.is_symlink() or not p.is_file() for p in root.iterdir()):
+              raise SystemExit('Release artifact must contain regular files only')
+          archive = root / archive_name
+          if not 0 < archive.stat().st_size <= 32 * 1024 * 1024:
+              raise SystemExit('Unexpected archive size')
+          checksum = (root / (archive_name + '.sha256')).read_text()
+          digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+          if checksum != digest + '  ' + archive_name + '\n':
+              raise SystemExit('Release checksum mismatch')
+          if not 0 < (root / 'RELEASE_NOTES.md').stat().st_size <= 100_000:
+              raise SystemExit('Missing or oversized release notes')
+          sha = os.environ['EXPECTED_SHA']
+          if not re.fullmatch(r'[0-9a-f]{40}', sha):
+              raise SystemExit('Invalid expected commit')
+          prefix = 'understanding-lab-0.2.0-static'
+          with tarfile.open(archive, 'r:gz') as bundle:
+              members = bundle.getmembers()
+              names = [m.name.rstrip('/') for m in members]
+              if len(names) != len(set(names)) or sum(m.size for m in members) > 64 * 1024 * 1024:
+                  raise SystemExit('Duplicate or oversized archive members')
+              for member in members:
+                  path = pathlib.PurePosixPath(member.name)
+                  if path.is_absolute() or '..' in path.parts or not path.parts or path.parts[0] != prefix:
+                      raise SystemExit('Unsafe archive path')
+                  if not (member.isfile() or member.isdir()):
+                      raise SystemExit('Links and special files are forbidden')
+              files = {m.name[len(prefix) + 1:]: m for m in members if m.isfile()}
+              required = {'BUILD.json', 'SHA256SUMS', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'serve.py', 'site/index.html', 'site/sw.js', 'site/THIRD_PARTY_LICENSES.txt'}
+              if not required <= files.keys():
+                  raise SystemExit('Missing required distribution files')
+              manifest = bundle.extractfile(files['SHA256SUMS']).read().decode('utf-8')
+              declared = {}
+              for line in manifest.splitlines():
+                  match = re.fullmatch(r'([0-9a-f]{64})  (.+)', line)
+                  if not match or match[2] in declared:
+                      raise SystemExit('Invalid or duplicate internal checksum')
+                  declared[match[2]] = match[1]
+              if set(declared) != set(files) - {'SHA256SUMS'}:
+                  raise SystemExit('Internal checksum inventory mismatch')
+              for name, expected in declared.items():
+                  if hashlib.sha256(bundle.extractfile(files[name]).read()).hexdigest() != expected:
+                      raise SystemExit('Internal file checksum mismatch')
+              build = json.load(bundle.extractfile(files['BUILD.json']))
+              if build.get('sourceCommit') != sha or build.get('version') != '0.2.0' or build.get('dirty') is not False:
+                  raise SystemExit('Release source/version/clean-tree mismatch')
+              if build.get('scope') != 'static local-first course; optional backend services excluded':
+                  raise SystemExit('Unexpected distribution scope')
+          print('Verified v0.2.0 static archive at commit ' + sha + ', SHA256 ' + digest)
+          PY
+      - name: Publish immutable v0.2.0 release and exact checked assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: tsumon/understanding-lab
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # A rerun must never replace an existing release, tag, or asset.
+          release_exists=false
+          if gh release view v0.2.0 --json tagName,isDraft,isPrerelease,url > existing-release.json 2> release-read.err; then
+            jq -e '.tagName == "v0.2.0" and .isDraft == false and .isPrerelease == false' existing-release.json
+            release_exists=true
+          elif ! grep -qi 'release not found\|HTTP 404\|Not Found' release-read.err; then
+            cat release-read.err >&2
+            exit 1
+          fi
+          tag_args=()
+          if gh api repos/tsumon/understanding-lab/git/ref/tags/v0.2.0 > existing-tag.json 2> tag-read.err; then
+            # An existing annotated tag or a different commit requires manual reconciliation.
+            test "$(jq -r '.object.type' existing-tag.json)" = commit
+            test "$(jq -r '.object.sha' existing-tag.json)" = "$RELEASE_SHA"
+            tag_args=(--verify-tag)
+          elif ! grep -q 'HTTP 404' tag-read.err; then
+            cat tag-read.err >&2
+            exit 1
+          fi
+          if [[ "$release_exists" == false ]]; then
+            gh release create v0.2.0 \
+              --repo "$GH_REPO" --target "$RELEASE_SHA" "${tag_args[@]}" \
+              --title 'Understanding Lab v0.2.0' --latest \
+              --notes-file release-files/RELEASE_NOTES.md \
+              release-files/understanding-lab-0.2.0-static.tar.gz \
+              release-files/understanding-lab-0.2.0-static.tar.gz.sha256
+          fi
+          # A rerun succeeds only for the same published commit and byte-identical assets.
+          gh release view v0.2.0 --repo "$GH_REPO" --json url,isDraft,isPrerelease,assets,tagName > published-release.json
+          jq -e '.isDraft == false and .isPrerelease == false and .tagName == "v0.2.0" and ([.assets[].name] | sort) == ["understanding-lab-0.2.0-static.tar.gz", "understanding-lab-0.2.0-static.tar.gz.sha256"]' published-release.json
+          test "$(gh api repos/tsumon/understanding-lab/git/ref/tags/v0.2.0 --jq '.object.sha')" = "$RELEASE_SHA"
+          gh release download v0.2.0 --repo "$GH_REPO" --dir downloaded-assets \
+            --pattern understanding-lab-0.2.0-static.tar.gz \
+            --pattern understanding-lab-0.2.0-static.tar.gz.sha256
+          cmp release-files/understanding-lab-0.2.0-static.tar.gz downloaded-assets/understanding-lab-0.2.0-static.tar.gz
+          cmp release-files/understanding-lab-0.2.0-static.tar.gz.sha256 downloaded-assets/understanding-lab-0.2.0-static.tar.gz.sha256
+          cat published-release.json

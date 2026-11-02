@@ -10,6 +10,33 @@
 
 Understanding Lab is a local-first, bilingual AI course with 12 interactive chapters: data splits, regression, overfitting, optimization, classification, neural networks, embeddings, attention, generation, retrieval, evaluation, and responsible deployment. Predict, explore a deterministic experiment, explain a transfer case, and reflect. Course progress stays in this browser. The original overfitting learning loop remains available separately.
 
+## Download and start — v0.2.0
+
+[Release notes and downloads](https://github.com/tsumon/understanding-lab/releases/tag/v0.2.0) · [Static course archive](https://github.com/tsumon/understanding-lab/releases/download/v0.2.0/understanding-lab-0.2.0-static.tar.gz)
+
+1. Download `understanding-lab-0.2.0-static.tar.gz` and its `.sha256` file from the release. Verify the checksum, then extract it.
+2. With **Python 3.9+** installed, open a terminal in the extracted `understanding-lab-0.2.0-static` folder and run:
+
+   ```sh
+   python3 serve.py
+   ```
+
+   On Windows, use `py serve.py` if appropriate.
+3. Open **http://127.0.0.1:4173/**. No npm, Node.js, account, API key or backend is needed. Wait for the cache-ready message before going offline. Do not open `index.html` directly with `file://`.
+
+This release is the **anonymous, local-first static course**, not a hosted account/AI service. Before updating, export both course progress and any original-lesson draft; keep the same browser, hostname and port, and do not clear site data. See [release/build checks](docs/release-checklist.md) and [packaged usage instructions](docs/static-release-readme.md).
+
+## Course map
+
+| Chapters | Topics |
+| --- | --- |
+| 1–3 | Data splits and leakage · regression · overfitting |
+| 4–6 | Gradient descent · classification · neural networks |
+| 7–9 | Embeddings · attention weights · language-model generation |
+| 10–12 | Retrieval-augmented generation · evaluation · responsible deployment |
+
+Every chapter includes explanation, prediction with feedback, a deterministic experiment, transfer practice, corrected knowledge checks, reflection and sources. Both languages use the same progress record; suggested prerequisites are not locks.
+
 ## See the app
 
 <p align="center"><a href="assets/readme/desktop-en.png"><img src="assets/readme/desktop-en.png" alt="Understanding Lab, English desktop view" width="720"></a></p>
@@ -53,10 +80,6 @@ Open the local URL printed by Vite: `/` opens the course catalog, `/#course/<cha
 
 For offline use, run `npm run build:offline` and `npm run preview:offline`, visit the printed URL online once, and wait for the cache-ready status before going offline. External source links still need a connection. Course records are separate from original lesson drafts; browser storage is not a durable backup.
 
-## Static release candidate
-
-Version `0.2.0-rc.1` targets the local, anonymous course only—not a hosted account/AI service. Run `npm run package:static` to produce a checksummed archive under `tmp/releases/`. The extracted archive needs only Python 3.9+ and a browser: run `python3 serve.py`, then open the printed loopback URL. Full commands, update precautions and release gates: [release checklist](docs/release-checklist.md). No GitHub Release or deployment is implied by a local candidate.
-
 ## Project checks
 
 ```sh
@@ -66,7 +89,7 @@ npm run experiment:test
 npm run build:offline
 ```
 
-The experiment checks also require `uv` and Python 3.9+.12.13; see [Contributing](CONTRIBUTING.md) for setup and browser checks. CI uses deterministic fixtures, not paid model calls.
+The experiment checks also require `uv` and Python 3.12.13; see [Contributing](CONTRIBUTING.md) for setup and browser checks. CI uses deterministic fixtures, not paid model calls.
 
 ## Current scope
 
@@ -74,6 +97,7 @@ Twelve bilingual chapters plus the retained original overfitting lesson, deliver
 
 ## Documentation
 
+- [v0.2.0 release notes](docs/releases/v0.2.0.md) and [release/build checklist](docs/release-checklist.md)
 - [Course plan](docs/course-plan.md) and [platform/storage boundaries](docs/course-platform.md)
 - [Getting started](docs/getting-started.md): local setup and optional services
 - [Contributing](CONTRIBUTING.md): changes, checks, and data handling

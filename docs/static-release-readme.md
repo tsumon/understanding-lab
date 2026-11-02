@@ -1,4 +1,4 @@
-# Understanding Lab — static course candidate / 静态课程候选版
+# Understanding Lab — v0.2.0 static course / 静态课程正式版
 
 This archive contains 12 bilingual interactive AI chapters plus the original overfitting lesson. No account, model key, npm, Node.js or backend is needed to study. It is **not** a hosted account/AI service release.
 

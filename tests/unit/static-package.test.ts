@@ -12,7 +12,7 @@ afterEach(() => { for (const directory of directories.splice(0)) rmSync(director
 function fixture() {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'static-package-test-')); directories.push(dir);
   const put = (name: string, text: string) => { mkdirSync(path.dirname(path.join(dir, name)), { recursive: true }); writeFileSync(path.join(dir, name), text); };
-  put('package.json', JSON.stringify({ name: 'synthetic-static-package', version: '0.2.0-rc.1' }));
+  put('package.json', JSON.stringify({ name: 'synthetic-static-package', version: '0.2.0' }));
   put('.gitignore', 'tmp/\n');
   put('LICENSE', 'Synthetic fixture license'); put('THIRD_PARTY_NOTICES.md', 'Synthetic fixture notices');
   put('docs/static-release-readme.md', 'Synthetic instructions'); put('tools/serve-static.py', '# Synthetic server fixture');
@@ -27,7 +27,7 @@ function run(dir: string) { return spawnSync(process.execPath, ['--import', load
 describe('static distribution safety', () => {
   it('normalizes source modes and produces identical bytes from the same source', () => {
     const { dir } = fixture(); const first = run(dir); expect(first.status, first.stderr).toBe(0);
-    const archive = path.join(dir, 'tmp/releases/understanding-lab-0.2.0-rc.1-static.tar.gz'); const before = readFileSync(archive);
+    const archive = path.join(dir, 'tmp/releases/understanding-lab-0.2.0-static.tar.gz'); const before = readFileSync(archive);
     chmodSync(path.join(dir, 'dist/index.html'), 0o600); chmodSync(path.join(dir, 'dist'), 0o700);
     const second = run(dir); expect(second.status, second.stderr).toBe(0); expect(readFileSync(archive)).toEqual(before);
   });
@@ -43,7 +43,7 @@ describe('static distribution safety', () => {
   it.each(['.tar.gz', '.tar.gz.sha256'])('rejects existing archive output symlinks: %s', suffix => {
     const { dir, put } = fixture(); put('outside.txt', 'synthetic unchanged target');
     mkdirSync(path.join(dir, 'tmp/releases'), { recursive: true });
-    symlinkSync(path.join(dir, 'outside.txt'), path.join(dir, `tmp/releases/understanding-lab-0.2.0-rc.1-static${suffix}`));
+    symlinkSync(path.join(dir, 'outside.txt'), path.join(dir, `tmp/releases/understanding-lab-0.2.0-static${suffix}`));
     const result = run(dir); expect(result.status).not.toBe(0); expect(result.stderr).toContain('Expected regular file');
     expect(readFileSync(path.join(dir, 'outside.txt'), 'utf8')).toBe('synthetic unchanged target');
   });
