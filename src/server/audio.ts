@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process";
-import { once } from "node:events";
 
 export const SAMPLE_RATE = 16000;
 export const MAX_SECONDS = 60;
@@ -62,15 +61,27 @@ export async function normalizeAudio(
   const chunks: Buffer[] = [];
   let total = 0;
   let tooLong = false;
-  const timer = setTimeout(() => { child.kill("SIGKILL"); }, 15_000);
-  const onAbort = () => { child.kill("SIGKILL"); };
+  let timedOut = false;
+  let ioFailed = false;
+  const kill = () => { try { child.kill("SIGKILL"); } catch { /* Best-effort cleanup; the operation still rejects. */ } };
+  let stop!: (error: AudioError) => void;
+  const stopped = new Promise<never>((_resolve, reject) => { stop = reject; });
+  const onAbort = () => { kill(); stop(new AudioError("timeout")); };
+  const timer = setTimeout(() => { timedOut = true; onAbort(); }, 15_000);
   signal.addEventListener("abort", onAbort, { once: true });
+  const onPipeError = () => { ioFailed = true; kill(); stop(new AudioError("decode")); };
+  // Killing a decoder can fail an already queued stdin write asynchronously.
+  // Keep these handlers through destroy/late close events; unexpected I/O still rejects.
+  child.stdin.on("error", onPipeError);
+  child.stderr.on("error", onPipeError);
+  child.stderr.on("data", () => { /* Drain without retaining or logging input-dependent diagnostics. */ });
   const stdoutDone = new Promise<void>((resolve, reject) => {
     child.stdout.on("data", (chunk: Buffer) => {
+      if (tooLong) return;
       total += chunk.length;
       if (total > MAX_PCM_BYTES) {
         tooLong = true;
-        child.kill("SIGKILL");
+        kill();
         child.stdout.destroy();
         return;
       }
@@ -84,22 +95,27 @@ export async function normalizeAudio(
     child.once("close", (code) => resolve(typeof code === "number" ? code : 1));
     child.once("error", () => reject(new AudioError("decode")));
   });
+  // Observe every terminal promise before writing: end() may fail synchronously.
+  const completion = Promise.race([
+    Promise.all([closed, stdoutDone]).then(([exit]) => exit),
+    stopped,
+  ]);
   try {
-    child.stdin.end(Buffer.from(input));
-    const code = await Promise.race([
-      Promise.all([closed, stdoutDone]).then(([exit]) => exit),
-      once(signal, "abort").then(() => { throw new AudioError("timeout"); }),
-    ]);
-    if (signal.aborted) throw new AudioError("timeout");
+    if (signal.aborted) onAbort();
+    else { try { child.stdin.end(Buffer.from(input)); } catch { onPipeError(); } }
+    const code = await completion;
+    if (signal.aborted || timedOut) throw new AudioError("timeout");
     if (tooLong) throw new AudioError("too-long");
-    if (code !== 0) throw new AudioError("decode");
+    if (ioFailed || code !== 0) throw new AudioError("decode");
     const pcm = Buffer.concat(chunks);
     if (pcm.length === 0) throw new AudioError("empty");
     return encodeWav(pcm);
   } catch (error) {
-    child.kill("SIGKILL");
+    kill();
+    if (signal.aborted || timedOut) throw new AudioError("timeout");
+    if (tooLong) throw new AudioError("too-long");
     if (error instanceof AudioError) throw error;
-    throw new AudioError(signal.aborted ? "timeout" : "decode");
+    throw new AudioError("decode");
   } finally {
     clearTimeout(timer);
     signal.removeEventListener("abort", onAbort);
