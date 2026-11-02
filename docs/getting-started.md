@@ -1,6 +1,6 @@
 # Getting started
 
-Run the anonymous lesson locally first. It needs no account, API key, or server. This guide also explains how an operator can opt into account sync, tutor feedback, or speech transcription. Those services are not hosted by this project.
+Start with the local 12-chapter bilingual AI course. It needs no account, API key, or backend server. The original overfitting learning loop remains at `/#legacy`; only that original loop offers optional account sync, tutor feedback, or speech transcription when an operator configures them. Those services are not hosted by this project.
 
 ## How to run the local lesson
 
@@ -19,7 +19,9 @@ npm ci
 npm run dev
 ```
 
-Open the local address printed by Vite. Start a lesson, explain overfitting, make a prediction, and open the experiment. The app stores an anonymous attempt in this browser's local storage. It does not automatically appear on another device.
+Open the local address printed by Vite. `/` opens all 12 chapters; choose a chapter to read, predict, compare experiments, answer transfer and knowledge checks, then reflect. `/#course/<chapter-id>` is a chapter permalink; `/#legacy` opens the original overfitting lesson. Chapter prerequisites are recommendations, not locks. The displayed times are editorial estimates, not measured learner results.
+
+Course progress stays in local storage for this browser and origin; it does not automatically appear on another device, join an account, or upload to AI. **Export course record** downloads a JSON evidence copy. The new course does not yet have a JSON import UI. The original lesson has its own distinct export/import and account behavior. Keep one editing tab at a time: stale updates are detected, but local storage does not provide an atomic cross-tab transaction.
 
 Use **Language / 语言** to switch English and 简体中文. The choice is remembered locally; your writing and historical feedback are not translated. A tutor request already in progress keeps its original requested language.
 
@@ -36,11 +38,13 @@ npm run build:offline
 npm run preview:offline
 ```
 
-Open `http://127.0.0.1:4173` while online and wait for the page to say the learning material and experiment data are cached. Then disconnect and reload the same origin. Both languages and the text/experiment flow work locally; account saving, tutor requests and transcription still need their configured online services. Browser storage eviction or clearing site data can remove drafts and cached assets; use **Export current attempt** to keep a recovery copy.
+Open `http://127.0.0.1:4173` while online and wait for the page to say the learning material and experiment data are cached. Then disconnect and reload the same origin. Both languages and all bundled course experiments work locally; external source links still need a connection. Account saving, tutor requests and transcription in the original lesson still need their configured online services. Browser storage eviction or clearing site data can remove drafts and cached assets; use **Export course record** for the new course, or **Export current attempt** for the original lesson.
+
+When a waiting app update is offered, apply it after resolving any unsaved course record. If saving failed or another tab changed the record, the course pauses in-app refresh-to-update and offers export/recovery. It also requests a native leave-page warning, but this cannot protect against every browser behavior, operating-system termination, mobile tab eviction, or crash. Export promptly; an on-screen answer is not proof that it reached durable storage.
 
 ## How to configure optional account and AI services
 
-Only follow this section if you operate the service. The server binds to loopback at `127.0.0.1` and serves the built frontend and API from the same origin. Public deployment needs persistent storage, HTTPS reverse proxying, backup/restore practice, provider policy and budget decisions, and other prerequisites described in the [deployment guide (Chinese)](deployment.md).
+These features belong to the retained original overfitting loop, not the new course. Only follow this section if you operate the service. The server binds to loopback at `127.0.0.1` and serves the built frontend and API from the same origin. Public deployment needs persistent storage, HTTPS reverse proxying, backup/restore practice, provider policy and budget decisions, and other prerequisites described in the [deployment guide (Chinese)](deployment.md).
 
 1. Copy `.env.example` to an untracked `.env`. Set a random `BETTER_AUTH_SECRET` of at least 32 characters, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `PUBLIC_ORIGIN`, and a persistent `DB_PATH`. For local development, the example origin is `http://localhost:3001`. Register a GitHub OAuth application whose callback is `${PUBLIC_ORIGIN}/api/auth/callback/github`. Do not add repository permissions. Never prefix server credentials with `VITE_`.
 

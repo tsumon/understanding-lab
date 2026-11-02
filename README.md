@@ -53,6 +53,10 @@ Open the local URL printed by Vite: `/` opens the course catalog, `/#course/<cha
 
 For offline use, run `npm run build:offline` and `npm run preview:offline`, visit the printed URL online once, and wait for the cache-ready status before going offline. External source links still need a connection. Course records are separate from original lesson drafts; browser storage is not a durable backup.
 
+## Static release candidate
+
+Version `0.2.0-rc.1` targets the local, anonymous course only—not a hosted account/AI service. Run `npm run package:static` to produce a checksummed archive under `tmp/releases/`. The extracted archive needs only Python 3.9+ and a browser: run `python3 serve.py`, then open the printed loopback URL. Full commands, update precautions and release gates: [release checklist](docs/release-checklist.md). No GitHub Release or deployment is implied by a local candidate.
+
 ## Project checks
 
 ```sh
@@ -62,7 +66,7 @@ npm run experiment:test
 npm run build:offline
 ```
 
-The experiment checks also require `uv` and Python 3.12.13; see [Contributing](CONTRIBUTING.md) for setup and browser checks. CI uses deterministic fixtures, not paid model calls.
+The experiment checks also require `uv` and Python 3.9+.12.13; see [Contributing](CONTRIBUTING.md) for setup and browser checks. CI uses deterministic fixtures, not paid model calls.
 
 ## Current scope
 

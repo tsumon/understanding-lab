@@ -62,7 +62,7 @@ npm run experiment:test
 npm run build:offline
 ```
 
-实验数值检查还需要 `uv` 和 Python 3.12.13；环境准备与浏览器检查见[贡献指南（英文）](CONTRIBUTING.md)。CI 使用确定性测试夹具，不调用付费模型。
+实验数值检查还需要 `uv` 和 Python 3.9+.12.13；环境准备与浏览器检查见[贡献指南（英文）](CONTRIBUTING.md)。CI 使用确定性测试夹具，不调用付费模型。
 
 ## 当前范围
 
@@ -79,3 +79,7 @@ npm run build:offline
 ## 许可证
 
 原创项目源代码和文档依照 [MIT 许可证](LICENSE)提供，但依赖和其他材料仍受各自条款约束，详见[第三方声明](THIRD_PARTY_NOTICES.md)。
+
+## 静态发布候选
+
+`0.2.0-rc.1` 仅面向匿名本地课程，不代表账号 / AI 服务生产上线。`npm run package:static` 在 `tmp/releases/` 生成含校验和的归档；解压后只需 Python3.9+ 和浏览器，运行 `python3 serve.py` 并打开打印的回环地址。升级前导出记录，勿清除站点数据。完整命令与门槛见 [发布检查](docs/release-checklist.md)。本地候选不等于已创建 GitHub Release 或部署。

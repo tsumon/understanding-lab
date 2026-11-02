@@ -2,6 +2,8 @@
 
 使用 Node 22.23.2（最低 22.12），单进程 Express 5 服务和持久磁盘 SQLite。当前不支持多副本，不部署到无持久磁盘的临时实例。SQLite 启用 WAL、`foreign_keys=ON`、`busy_timeout=5000`。备份时应使用 SQLite 的一致性备份方式，或停止服务后备份数据库及相关 WAL 文件；数据库包含私人认证记录，不提交 Git。
 
+本轮候选发布范围仅为匿名本地静态课程包；以下账号 / AI 公共服务要求仍是独立上线门槛，不能由静态包测试替代。参见 [静态发布检查](release-checklist.md)。
+
 ## 匿名本机试玩
 
 `npm ci` 后运行 `npm run dev`，或使用已有的静态/离线构建流程。此阶段不需要 `.env`、GitHub 应用、服务端启动或模型密钥，已打开的静态预览也独立于账号服务。
@@ -13,9 +15,9 @@
 复制 `.env.example` 为不提交 Git 的 `.env`，填写至少 32 字符随机 `BETTER_AUTH_SECRET`、`GITHUB_CLIENT_ID`、`GITHUB_CLIENT_SECRET`、`PUBLIC_ORIGIN` 与持久 `DB_PATH`。公开部署 Origin 必须为 HTTPS 且不含路径、查询、用户信息；HTTP 只用于明确的本机 loopback Origin，`NODE_ENV=production` 时必须 HTTPS。`PORT` 默认 3001。仅使用文档中的认证环境变量，不扩展 Better Auth 的跨域信任 Origin。
 
 ```sh
-NPM_CONFIG_CACHE=/Applications/understanding-lab/.cache/npm npm ci
+npm ci
 npm run db:migrate
-npm run build
+npm run build:offline
 npm run server
 ```
 
@@ -37,3 +39,7 @@ Vite 开发服务器将 `/api` 代理到本机 3001。需要测试账号登录�
 
 CI 见 `.github/workflows/ci.yml`：`contents: read`，Node 22.23.2，不调用付费 API。`eval:check` 在案例设计审阅后应通过。`EVAL_PROVIDER=fixture` 的评测不是计费模型。
 
+
+## 构建命令边界
+
+分发或部署可离线版本必须运行 `npm run build:offline`（静态归档用 `npm run package:static`）。`npm run build` 只是基础 Vite 构建，复制的 service worker 仍含占位模板，不能将其直接当作离线发布产物。打包脚本会拒绝未替换的模板。

@@ -41,7 +41,7 @@ Each chapter requires the previous chapter as its recommended prerequisite; IDs 
 
 Question IDs, semantic choice IDs, and correct IDs match across languages. Correct choices occupy each displayed position exactly 12 times across the 36 unique prediction/check questions. Ordering is deterministic across visits and languages, not runtime randomization. IDs are not intended to conceal answers in source code; the goal is to avoid a first-button shortcut during ordinary use.
 
-Reading acknowledgement, responses, controlled-run counts, and quiz completion are **activity evidence**. Text length is an effort gate, not semantic grading. Matching a multiple-choice key does not establish transfer or mastery. Predictions may be wrong and still useful; feedback should invite revision, not punish exploration. The sample transfer answer is a model response, not a claim that all other valid answers must match its wording.
+Responses, controlled-run counts, and quiz completion are **activity evidence**. Text length is an effort gate, not semantic grading. Matching a multiple-choice key does not establish transfer or mastery. Predictions may be wrong and still useful; feedback should invite revision, not punish exploration. The sample transfer answer is a model response, not a claim that all other valid answers must match its wording.
 
 ## Source review and technical precision
 
@@ -78,3 +78,13 @@ Verify unique ordered IDs, backward prerequisites/no cycles, complete locale fie
 Run type checking and the curriculum structure tests after edits. Platform/E2E owners additionally verify all 12 chapters render, locale changes preserve semantic answers, progress survives refresh, experiment results belong to saved configurations, two genuinely different configurations are needed, and invalid or corrupt stored progress cannot fabricate completion. Confirm both desktop Chromium and narrow WebKit behavior, using the repository's normal no-retry policy.
 
 Future learner observation may reveal misconceptions or inaccessible language; record consented, privacy-preserving evidence before claiming effectiveness. No real learner records are included here. Optional provider/OAuth/transcription integrations remain outside this curriculum work and disabled by default.
+
+## Release content QA — 2026-11-02
+
+The author performed a second content-to-implementation review before packaging. This is an engineering/editorial review, **not independent learner validation**. All 24 distinct source pages were reopened via the web reader; the classification overview had one transient fetch error and succeeded on the subsequent direct request. No source destination remained unresolved. Links can still change after this review.
+
+The review checked bilingual question keys, arithmetic examples, control names, toy-model limitations, and the capstone against the rendered content contract. Spot checks included: mixed/grouped identity-split accuracies 1.0/0.5 at training fraction 0.5; regression MSE 0.028 at slope 2/intercept 1 without the outlier; zero loss after the quadratic update with rate 0.5/scale 1; undefined precision at classification threshold 1; four correct XOR points with the ReLU construction; masked attention weights totaling 1; top-k=1 generation selecting one candidate; unsupported weather retrieval abstaining; specialist mixed accuracy 0.7 at equal group weights; and a high-confidence wrong case remaining under automation threshold 0.9.
+
+Two precision corrections followed: documentation no longer claims an absent reading-acknowledgement feature, and chapter 8 describes the implemented preset-score **weight calculation stage**, not a complete attention head or value aggregation. The capstone is present in both languages with a concrete public-campus-assistant prompt, three self-check criteria, a worked response, and explicit limits. The course remains a bounded foundation sequence, not a promise of exhaustive AI expertise or a measured seven-hour learning result.
+
+No source diagrams, screenshots, datasets, or long passages are embedded in these new lessons. Mathematical definitions and original explanatory examples are accompanied by verification links; third-party source pages retain their own licenses and are not relicensed by the repository's MIT license. This provenance review is not a legal clearance opinion.
