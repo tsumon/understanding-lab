@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("跳过回答的小结不能显示理解已验证", async ({ page, isMobile }) => {
-  await page.goto("/");
+  await page.goto("/#legacy");
   await page.getByRole("button", { name: "开始学习" }).click();
   for (let i = 0; i < 8; i += 1) {
     if (isMobile) {
@@ -22,7 +22,7 @@ test("confirmed path records answers, experiment evidence, and a migration witho
   page.on("request", (request) => {
     if (request.url().includes("/api/tutor")) tutorRequests.push(request.url());
   });
-  await page.goto("/");
+  await page.goto("/#legacy");
   await page.getByRole("button", { name: "开始学习" }).click();
   await page.getByLabel("我的解释").fill("训练拟合好也可能只记住噪声");
   await page.getByRole("button", { name: "确认这段解释" }).click();

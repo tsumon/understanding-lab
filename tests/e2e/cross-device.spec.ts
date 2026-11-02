@@ -5,7 +5,7 @@ test("login, save, and send-to-AI stay independent and never hit tutor on the st
   page.on("request", (request) => {
     if (request.url().includes("/api/tutor")) tutorRequests.push(request.url());
   });
-  await page.goto("/");
+  await page.goto("/#legacy");
   await page.getByRole("button", { name: "登录" }).click();
   await page.getByRole("button", { name: "开始学习" }).click();
   await expect(page.getByLabel("把私人笔记一并发送给模型")).not.toBeChecked();

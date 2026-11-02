@@ -22,7 +22,7 @@ test("restores unconfirmed text and changes experiment parameters without an AI 
   page.on("request", (request) => {
     if (request.url().includes("/api/tutor")) tutorRequests.push(request.url());
   });
-  await page.goto("/");
+  await page.goto("/#legacy");
   await page.getByRole("button", { name: "开始学习" }).click();
   await page.getByLabel("我的解释").fill("训练误差不代表新数据表现");
   await page.reload();
@@ -34,7 +34,7 @@ test("restores unconfirmed text and changes experiment parameters without an AI 
 });
 
 test("finishes seven stages with skipped clarification and an honest experiment record", async ({ page, isMobile }) => {
-  await page.goto("/");
+  await page.goto("/#legacy");
   await page.getByRole("button", { name: "开始学习" }).click();
   await page.getByLabel("我的解释").fill("训练集拟合好也可能记住噪声");
   await page.getByRole("button", { name: "确认这段解释" }).click();
@@ -71,14 +71,14 @@ test("finishes seven stages with skipped clarification and an honest experiment 
 
 test("retains a corrupt draft as raw export data", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("understanding-lab:v1:anonymous:current", "{damaged draft"));
-  await page.goto("/");
+  await page.goto("/#legacy");
   await expect(page.getByText(/草稿损坏/)).toBeVisible();
   await expect(page.getByRole("button", { name: "导出损坏草稿" })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("understanding-lab:v1:anonymous:current"))).toBe("{damaged draft");
 });
 
 test("can skip an unavailable experiment and summarizes the latest confirmed revision", async ({ page, isMobile }) => {
-  await page.goto("/");
+  await page.goto("/#legacy");
   await page.getByRole("button", { name: "开始学习" }).click();
   await page.getByLabel("我的解释").fill("第一版解释");
   await page.getByRole("button", { name: "确认这段解释" }).click();
@@ -111,7 +111,7 @@ test("rapid revisions keep the latest explanation through skipped stages", async
   await installRapidRevisionTrace(page);
 
   try {
-    await page.goto("/");
+    await page.goto("/#legacy");
     await page.getByRole("button", { name: "开始学习" }).click();
     await page.getByLabel("我的解释").fill("第一版解释");
     await page.getByRole("button", { name: "确认这段解释" }).click();
@@ -146,7 +146,7 @@ test("keeps in-memory text and offers export when storage is full", async ({ pag
       return original.call(this, key, value);
     };
   });
-  await page.goto("/");
+  await page.goto("/#legacy");
   await page.getByRole("button", { name: "开始学习" }).click();
   await page.getByLabel("我的解释").fill("仍在内存里的回答");
   await expect(page.getByText(/未保存到本机/)).toBeVisible();
@@ -157,7 +157,7 @@ test("keeps in-memory text and offers export when storage is full", async ({ pag
 test("mobile tabs preserve draft and fit a 360px viewport", async ({ page, isMobile }) => {
   test.skip(!isMobile, "mobile project only");
   await page.setViewportSize({ width: 360, height: 740 });
-  await page.goto("/");
+  await page.goto("/#legacy");
   await page.getByRole("button", { name: "开始学习" }).click();
   await page.getByRole("button", { name: "讲解" }).click();
   await page.getByLabel("我的解释").fill("保留手机草稿");
@@ -170,7 +170,7 @@ test("mobile tabs preserve draft and fit a 360px viewport", async ({ page, isMob
 test("fast refresh retains notes, experiment settings, and a draft from an earlier step", async ({ page, isMobile }, testInfo) => {
   await installRapidRevisionTrace(page);
   try {
-    await page.goto("/");
+    await page.goto("/#legacy");
     await page.getByRole("button", { name: "开始学习" }).click();
     await page.getByLabel("我的笔记（最多 8000 字）").fill("只保存在本机的笔记");
     await page.reload();
@@ -210,7 +210,7 @@ test("loads the production document and catalog after its origin is unavailable"
   });
   try {
     await expect.poll(async () => fetch(origin).then((response) => response.status).catch(() => 0), { timeout: 10000 }).toBe(200);
-    await page.goto(origin);
+    await page.goto(`${origin}/#legacy`);
     await expect(page.getByText("公共材料与实验数据已缓存，可离线使用")).toBeVisible({ timeout: 15000 });
     await page.getByRole("button", { name: "开始学习" }).click();
     await page.getByLabel("我的解释").fill("离线仍可编辑");

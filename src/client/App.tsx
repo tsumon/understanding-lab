@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { newSession, SessionSchema, type Answer, type ExperimentConfig, type LearningSession, type Snapshot, type StoredFeedback } from "../domain/contracts";
 import { currentAnswer, feedbackViews, questionFor, questionLocaleFor, transition } from "../domain/session";
 import { parsePack, type ExperimentPack } from "../experiment/catalog";
@@ -19,9 +19,6 @@ import type { Locale } from "../domain/locale";
 import "./styles.css";
 
 const draftId = "current";
-const saved = readEnvelope(draftId);
-const damaged = saved ? null : rawDraftForExport(draftId);
-const savedConflict = readConflict(draftId);
 const initialExploration: Exploration = { config: { seed: 17, n: 40, noise: 0.1, degree: 3 }, frozen: null, revealed: false, contaminated: false };
 type View = "material" | "experiment" | "explanation";
 type SyncState = "local" | "syncing" | "synced" | "conflict" | "offline" | "deleted";
@@ -41,6 +38,12 @@ function download(name: string, content: string, type: string) {
 
 export function App() {
   const { locale, setLocale, copy } = useLocale();
+  // Returning from the course catalog remounts App without reloading this module.
+  // Take a fresh, consistent recovery snapshot for each mount, not once per bundle.
+  const [{ saved, damaged, savedConflict }] = useState(() => {
+    const saved = readEnvelope(draftId);
+    return { saved, damaged: saved ? null : rawDraftForExport(draftId), savedConflict: readConflict(draftId) };
+  });
   const [started, setStarted] = useState(Boolean(saved));
   const [session, setSession] = useState<LearningSession>(saved?.session ?? newSession(draftId));
   const [exploration, setExploration] = useState<Exploration>(saved?.exploration ?? initialExploration);
@@ -111,7 +114,9 @@ export function App() {
     persist(envelopeOf());
   }, [started, session, exploration, drafts, text, corruptRaw, binding, autoSave, pendingSave, userId]);
 
-  useEffect(() => {
+  // Cancel the previous context during commit, before the newly committed UI can
+  // start another request. A delayed passive effect could abort that new request.
+  useLayoutEffect(() => {
     invalidateTutor();
   }, [session.id, session.contentRevision, session.step, session.clarificationRound, binding?.ownerId]);
 
@@ -453,7 +458,10 @@ export function App() {
   const storageMessage = saveError === "storage-full" ? copy.storageFull : copy.storageUnavailable;
 
   return <>
-    <a className="skip-link" href="#main-content">{copy.skipLink}</a>
+    <a className="skip-link" href="#main-content" onClick={(event) => {
+      event.preventDefault();
+      document.getElementById("main-content")?.focus();
+    }}>{copy.skipLink}</a>
     <main id="main-content" className="app-shell" tabIndex={-1}>
     <header className="page-header">
       <div className="page-header-top">
