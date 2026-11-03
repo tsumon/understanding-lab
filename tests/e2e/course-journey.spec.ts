@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:net';
@@ -180,14 +180,49 @@ test('a first-time course visit caches the catalog and chapters for offline refr
   const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--host', '127.0.0.1', '--port', String(port)], {
     cwd: process.cwd(), stdio: 'ignore',
   });
+  let failed = false;
+  const started = Date.now();
+  const events: Array<{ phase: string; ms: number; detail?: unknown }> = [];
+  const record = (phase: string, detail?: unknown) => { if (events.length < 40) events.push({ phase, ms: Date.now() - started, detail }); };
+  page.on('pageerror', error => record('pageerror', error.message.slice(0, 500)));
+  page.on('requestfailed', request => record('requestfailed', { path: new URL(request.url()).pathname, reason: request.failure()?.errorText?.slice(0, 300) }));
+  const snapshot = async (phase: string) => {
+    let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const detail = await Promise.race([page.evaluate(async () => {
+        const registration = await navigator.serviceWorker.getRegistration();
+        const names = (await caches.keys()).slice(0, 5);
+        return { controller: navigator.serviceWorker.controller?.state ?? null,
+          active: registration?.active?.state ?? null, installing: registration?.installing?.state ?? null,
+          waiting: registration?.waiting?.state ?? null,
+          status: document.querySelector('.offline-status')?.textContent?.slice(0, 500) ?? null,
+          caches: await Promise.all(names.map(async name => ({ name, entries: (await (await caches.open(name)).keys()).slice(0, 12).map(request => new URL(request.url).pathname) }))) };
+      }), new Promise<never>((_, reject) => {
+        // Bound diagnostics, not product readiness, so a stalled browser cannot
+        // prevent child-server cleanup after the original assertion fails.
+        diagnosticTimer = setTimeout(() => reject(new Error('Diagnostic snapshot unavailable after 1s')), 1000);
+      })]);
+      record(phase, detail);
+    } catch (error) { record(phase, { unavailable: error instanceof Error ? error.message.slice(0, 500) : 'unknown' }); }
+    finally { clearTimeout(diagnosticTimer); }
+  };
   try {
     await expect.poll(async () => fetch(origin).then(response => response.status).catch(() => 0)).toBe(200);
     await page.goto(origin);
+    await snapshot('document-loaded');
+    // A cold service-worker installation is an asynchronous prerequisite, not a
+    // guarantee that all public assets download within the UI assertion's 5s.
+    // This remains bounded by the original whole-test budget; no sleeps/retries.
+    record('await-service-worker-ready');
+    await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
+    record('service-worker-ready');
     await expect(page.getByText('公共材料与实验数据已缓存，可离线使用', { exact: true })).toBeVisible();
+    await snapshot('cache-ui-confirmed');
     await page.getByRole('link', { name: first.content['zh-CN'].title, exact: true }).click();
     await page.locator('#course-transfer').fill(transfer);
     // Test actual origin unavailability, as the original lesson regression does.
     // WebKit's context.setOffline emulation aborted cached navigation internally.
+    record('stop-origin');
     server.kill('SIGTERM');
     await once(server, 'exit');
     await expect.poll(async () => fetch(origin).then(response => response.status).catch(() => 0)).toBe(0);
@@ -201,7 +236,21 @@ test('a first-time course visit caches the catalog and chapters for offline refr
     await page.reload();
     await expect(page.getByRole('heading', { name: second.content.en.title, exact: true })).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  } catch (error) {
+    failed = true;
+    throw error;
   } finally {
+    try {
+      if (failed || test.info().status !== test.info().expectedStatus) {
+        if (!page.isClosed()) await snapshot('failure');
+        const diagnostic = test.info().outputPath('offline-cache-diagnostic.json');
+        await writeFile(diagnostic, JSON.stringify({ browser: test.info().project.name, events }, null, 2));
+        await test.info().attach('offline-cache-diagnostic', { path: diagnostic, contentType: 'application/json' });
+      }
+    } catch {
+      // Diagnostic capture must not replace the original failure or skip cleanup.
+      console.warn('Offline-cache diagnostic capture unavailable');
+    }
     if (server.exitCode === null && server.signalCode === null) {
       server.kill('SIGTERM');
       await once(server, 'exit');
