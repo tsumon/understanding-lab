@@ -36,7 +36,7 @@ export async function openSignedPage(browser: Browser, origin: string, userId: s
     await route.fulfill({ status: 204, body: "" });
   });
   const page = await context.newPage();
-  await page.goto(origin);
+  await page.goto(`${origin}/#legacy`);
   await page.evaluate((id) => { document.cookie = `ul-test-user=${id}; path=/`; }, userId);
   return { context, page };
 }

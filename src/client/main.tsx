@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
+import { CourseRoot } from "../course/CourseRoot";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { LocaleProvider } from "./LocaleProvider";
 import { readLocalePreference, messages } from "./i18n";
@@ -10,4 +10,4 @@ const startupLocale = readLocalePreference();
 document.documentElement.lang = startupLocale;
 document.title = messages[startupLocale].appName;
 if (!root) throw new Error(messages[startupLocale].missingRoot);
-createRoot(root).render(<LocaleProvider><ErrorBoundary><App /></ErrorBoundary></LocaleProvider>);
+createRoot(root).render(<LocaleProvider><ErrorBoundary><CourseRoot /></ErrorBoundary></LocaleProvider>);

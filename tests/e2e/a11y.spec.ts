@@ -3,11 +3,14 @@ import AxeBuilder from "@axe-core/playwright";
 
 test("skip link and keyboard can start the local lesson", async ({ page, isMobile }) => {
   test.skip(Boolean(isMobile), "keyboard skip-link path is for desktop");
-  await page.goto("/");
+  await page.goto("/#legacy");
+  // Document load can precede React's commit; do not send Tab to an empty page.
+  await expect(page.getByRole("link", { name: "跳到主要内容" })).toBeAttached();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "跳到主要内容" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#main-content")).toBeFocused();
+  await expect(page).toHaveURL(/#legacy$/);
   await page.getByRole("button", { name: "开始学习" }).press("Enter");
   await expect(page.getByLabel("我的解释")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "学习进度" })).toBeVisible();
@@ -19,14 +22,14 @@ async function seriousViolations(page: import("@playwright/test").Page) {
 }
 
 test("axe reports no critical or serious issues on home and the started lesson", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/#legacy");
   expect(await seriousViolations(page), "home").toEqual([]);
   await page.getByRole("button", { name: "开始学习" }).click();
   expect(await seriousViolations(page), "started lesson").toEqual([]);
 });
 
 test("axe reports no critical or serious issues on experiment and summary", async ({ page, isMobile }) => {
-  await page.goto("/");
+  await page.goto("/#legacy");
   await page.getByRole("button", { name: "开始学习" }).click();
   await page.getByRole("button", { name: "先做实验" }).click();
   if (isMobile) await page.getByRole("button", { name: "实验", exact: true }).click();

@@ -5,7 +5,7 @@ test.use({ locale: "en-US" });
 test("fresh English learning completes with bilingual draft and experiment continuity", async ({ page, isMobile }) => {
   const apiRequests: string[] = [];
   page.on("request", (request) => { if (new URL(request.url()).pathname.startsWith("/api/")) apiRequests.push(request.url()); });
-  await page.goto("/");
+  await page.goto("/#legacy");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page).toHaveTitle("Understanding Lab");
   expect(await page.evaluate(() => localStorage.getItem("understanding-lab:ui-locale"))).toBeNull();

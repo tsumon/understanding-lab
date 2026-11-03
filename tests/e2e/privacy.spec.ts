@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 test("export is a local recovery file without cookies, tokens, or secrets", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/#legacy");
   await page.getByRole("button", { name: "开始学习" }).click();
   await page.getByLabel("我的解释").fill("导出不应带上登录凭据");
   await page.getByRole("button", { name: "确认这段解释" }).click();
@@ -21,7 +21,7 @@ test("export is a local recovery file without cookies, tokens, or secrets", asyn
 });
 
 test("service worker does not cache API, non-GET, or cross-origin requests", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/#legacy");
   await expect(page.getByText("公共材料与实验数据已缓存，可离线使用")).toBeVisible({ timeout: 15000 });
   const probe = await page.evaluate(async () => {
     const post = await fetch("/api/tutor", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })

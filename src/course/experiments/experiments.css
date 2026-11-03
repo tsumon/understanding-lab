@@ -1,0 +1,39 @@
+.course-experiment { border:1px solid #d4d0c8; border-radius:6px; padding:clamp(.8rem,3vw,1.5rem); background:#fffcf7; color:#1c2328; min-width:0; }
+.experiment-disclaimer,.experiment-note {color:#5a6a73; font-size:.95rem; line-height:1.6;}
+.course-experiment .experiment-controls {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:1.2rem;margin:1.2rem 0;}
+.experiment-control label {display:block;font-weight:600;margin-bottom:.5rem;line-height:1.5;}
+.experiment-control label strong {color:#1a5368;font-variant-numeric:tabular-nums;}
+.experiment-control select {width:100%;min-height:44px;background:#fffcf7;color:#1c2328;border:1px solid #5a6a73;border-radius:2px;font:inherit;padding:.5rem;}
+.experiment-control input[type=range] {width:100%;min-height:44px;accent-color:#1a5368;margin:0;}
+.experiment-metrics {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:.8rem;margin:1rem 0;}
+.experiment-metrics>div {padding:.8rem;border-left:3px solid #1a5368;background:#f3f1ec;min-width:0;}
+.experiment-metrics span,.experiment-metrics strong {display:block;overflow-wrap:anywhere;}
+.experiment-metrics span {font-size:.9rem;line-height:1.5;}
+.experiment-metrics strong {margin-top:.4rem;font-size:1.2rem;font-variant-numeric:tabular-nums;}
+.experiment-table-wrap {max-width:100%;overflow-x:auto;margin:1rem 0;}
+.experiment-table-wrap table {border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.95rem;}
+.experiment-table-wrap caption {text-align:left;color:#5a6a73;padding:.5rem 0;}
+.experiment-table-wrap th,.experiment-table-wrap td {border-bottom:1px solid #d4d0c8;text-align:left;padding:.6rem;min-width:4rem;}
+.experiment-table-wrap th {background:#f3f1ec;}
+.course-experiment button {min-height:44px;padding:.65rem 1.1rem;border:1px solid #1a5368;border-radius:2px;background:#1a5368;color:#fff;font:inherit;cursor:pointer;}
+.course-experiment :is(button,select,input,summary,[tabindex]):focus-visible {outline:3px solid #c47a1a;outline-offset:3px;}
+.experiment-history summary {cursor:pointer;min-height:44px;padding:.5rem 0;}
+.experiment-history li {padding:.5rem 0;}
+.experiment-history code {display:block;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem;}
+@media (prefers-reduced-motion:reduce) {.course-experiment * {scroll-behavior:auto;}}
+.course-experiment .experiment-chart {margin:1.2rem 0;padding:.8rem 0;border-top:1px solid #d4d0c8;}
+.experiment-chart figcaption {font-weight:650;margin-bottom:.7rem;line-height:1.5;}
+.experiment-chart svg {display:block;width:100%;height:auto;max-height:340px;}
+.experiment-chart svg text {font:12px system-ui,sans-serif;fill:#1c2328;}
+.experiment-chart p {font-size:.85rem;line-height:1.5;color:#5a6a73;}
+.experiment-chart-legend {display:flex;flex-wrap:wrap;gap:.5rem 1rem;list-style:none;padding:0;font-size:.9rem;}
+.experiment-chart-legend span {display:inline-block;width:1rem;height:.35rem;margin-right:.4rem;vertical-align:middle;}
+.experiment-bar-row {display:grid;grid-template-columns:minmax(60px,1fr) 3fr 3.5rem;gap:.6rem;align-items:center;margin:.75rem 0;font-size:.9rem;}
+.experiment-bar-track {height:1.3rem;background:#e1ded7;border-left:1px solid #5a6a73;}
+.experiment-bar-track>div {height:100%;background:#1a5368;}
+.experiment-confusion {border-collapse:collapse;width:100%;text-align:center;}
+.experiment-confusion th,.experiment-confusion td {padding:.65rem;border:1px solid #d4d0c8;}
+.experiment-confusion .correct {background:#e6eee6;}
+.experiment-confusion .error {background:#f4e8df;}
+.experiment-confusion td strong,.experiment-confusion td span {display:block;}
+.experiment-confusion td strong {font-size:1.5rem;}
