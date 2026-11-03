@@ -73,6 +73,18 @@ export async function installRapidRevisionTrace(page: Page): Promise<void> {
       });
     });
     window.addEventListener("error", () => record("pageerror", { message: "Uncaught browser error (details omitted)" }));
+    for (const kind of ["pointerdown", "pointerup", "click"]) {
+      document.addEventListener(kind, event => {
+        const start = document.querySelector<HTMLButtonElement>(".intro button");
+        if (!start || !(event instanceof MouseEvent)) return;
+        const rect = start.getBoundingClientRect();
+        record(`intro-${kind}`, {
+          x: event.clientX, y: event.clientY,
+          target: event.target instanceof Element ? event.target.tagName : "unknown",
+          start: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+        });
+      }, true);
+    }
     document.addEventListener("click", (event) => {
       const button = event.target instanceof Element ? event.target.closest("button") : null;
       const label = button?.textContent?.trim();

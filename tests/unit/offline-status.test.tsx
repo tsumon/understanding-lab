@@ -63,7 +63,8 @@ function firstInstallation() {
 test.each(['ready-first', 'controller-first'])("initial cache status requires the actual worker acknowledgement: %s", async order => {
   const { registration, serviceWorker, resolveReady } = firstInstallation();
   render(<OfflineStatus enabled />);
-  expect(screen.getByText("公共离线缓存尚未确认")).toBeTruthy();
+  expect(screen.getByText("公共离线缓存尚未确认").getAttribute("aria-hidden")).toBe("false");
+  expect(screen.getByText("公共材料与实验数据已缓存，可离线使用").getAttribute("aria-hidden")).toBe("true");
   if (order === 'ready-first') {
     await act(async () => { resolveReady(registration); });
     expect(registration.active.postMessage).not.toHaveBeenCalled();
@@ -75,7 +76,21 @@ test.each(['ready-first', 'controller-first'])("initial cache status requires th
   }
   await waitFor(() => expect(registration.active.postMessage).toHaveBeenCalledWith({ type: 'CHECK_CACHE' }));
   // Platform ready / controller activation alone must not claim cached content.
-  expect(screen.getByText("公共离线缓存尚未确认")).toBeTruthy();
+  expect(screen.getByText("公共离线缓存尚未确认").getAttribute("aria-hidden")).toBe("false");
+  expect(screen.getByText("公共材料与实验数据已缓存，可离线使用").getAttribute("aria-hidden")).toBe("true");
   act(() => serviceWorker.dispatchEvent(new MessageEvent('message', { data: { type: 'CACHE_READY' } })));
-  expect(screen.getByText("公共材料与实验数据已缓存，可离线使用")).toBeTruthy();
+  expect(screen.getByText("公共材料与实验数据已缓存，可离线使用").getAttribute("aria-hidden")).toBe("false");
+  expect(screen.getByText("公共离线缓存尚未确认").getAttribute("aria-hidden")).toBe("true");
+});
+
+
+test("reserved update layout has no accessible or focusable action before an update exists", () => {
+  firstInstallation();
+  const view = render(<OfflineStatus enabled />);
+  expect(screen.queryByRole("button")).toBeNull();
+  const placeholder = view.container.querySelector<HTMLButtonElement>(".offline-update")!;
+  expect(placeholder.disabled).toBe(true);
+  expect(placeholder.tabIndex).toBe(-1);
+  expect(placeholder.style.visibility).toBe("hidden");
+  expect(placeholder.getAttribute("aria-hidden")).toBe("true");
 });
