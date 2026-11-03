@@ -41,7 +41,7 @@ test("returning to the same loaded App restores the latest draft rather than the
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => packJson }));
   const { App } = await import("../../src/client/App");
   const first = render(<App />);
-  fireEvent.change(screen.getByRole("textbox", { name: "我的解释" }), { target: { value: "离开页面前刚修改的新草稿" } });
+  fireEvent.input(screen.getByRole("textbox", { name: "我的解释" }), { target: { value: "离开页面前刚修改的新草稿" } });
   fireEvent.change(screen.getByLabelText("我的笔记（最多 8000 字）"), { target: { value: "刚修改的本机笔记" } });
   first.unmount();
   // Hash navigation remounts the component without reloading its JavaScript module.

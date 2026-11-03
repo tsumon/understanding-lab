@@ -41,7 +41,12 @@ a { overflow-wrap: anywhere; color: var(--sea); }
 .page-header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
 .eyebrow { font-size: 0.9rem; font-weight: 700; color: var(--sea); margin: 0 0 0.35rem; letter-spacing: 0.04em; }
 .offline-status, .save-status { color: var(--ink-mute); font-size: 0.9rem; }
-.offline-status button { margin-left: 0.7rem; }
+/* Async worker notifications must not move a button between pointer down/up.
+   Hidden alternatives reserve their natural, localized wrapping height. */
+.offline-status { display: grid; gap: 0.35rem; justify-items: start; }
+.offline-cache-messages { display: grid; }
+.offline-cache-messages > span { grid-area: 1 / 1; }
+.offline-status .offline-update { margin: 0; }
 .card {
   min-width: 0; background: var(--card); border: 1px solid var(--rule); border-radius: 6px;
   padding: 1.15rem; margin-bottom: 1rem; box-shadow: var(--shadow);

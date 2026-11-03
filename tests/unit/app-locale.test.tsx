@@ -15,7 +15,7 @@ test("switching an open draft changes the interface only and persists across rem
   const { LocaleProvider } = await import("../../src/client/LocaleProvider");
   const { unmount } = render(<LocaleProvider><App /></LocaleProvider>);
   fireEvent.click(screen.getByRole("button", { name: "开始学习" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "我的解释" }), { target: { value: "my original draft" } });
+  fireEvent.input(screen.getByRole("textbox", { name: "我的解释" }), { target: { value: "my original draft" } });
   const before = localStorage.getItem("understanding-lab:v1:anonymous:current");
   fireEvent.change(screen.getByRole("combobox", { name: "Language / 语言" }), { target: { value: "en" } });
   expect(screen.getByRole("textbox", { name: "Your explanation" })).toHaveProperty("value", "my original draft");
@@ -69,7 +69,7 @@ test("confirmed revisions record the current question language and a switch chan
   const { LocaleProvider } = await import("../../src/client/LocaleProvider");
   render(<LocaleProvider><App /></LocaleProvider>);
   fireEvent.click(screen.getByRole("button", { name: "开始学习" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "我的解释" }), { target: { value: "original words" } });
+  fireEvent.input(screen.getByRole("textbox", { name: "我的解释" }), { target: { value: "original words" } });
   fireEvent.click(screen.getByRole("button", { name: "确认这段解释" }));
   const before = JSON.parse(localStorage.getItem("understanding-lab:v1:anonymous:current")!) as { session: LearningSession };
   expect(before.session.answers[0].questionLocale).toBe("zh-CN");
@@ -133,12 +133,12 @@ test.each(["same-revision navigation", "content edit"])("a %s during tutor authe
   const { LocaleProvider } = await import("../../src/client/LocaleProvider");
   render(<LocaleProvider><App /></LocaleProvider>);
   fireEvent.click(screen.getByRole("button", { name: "Start learning" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Your explanation" }), { target: { value: "Original explanation" } });
+  fireEvent.input(screen.getByRole("textbox", { name: "Your explanation" }), { target: { value: "Original explanation" } });
   fireEvent.click(screen.getByRole("button", { name: "Confirm this explanation" }));
   fireEvent.click(screen.getByRole("button", { name: "Send to AI" }));
   await waitFor(() => expect(resolveAuth).toBeTypeOf("function"));
   if (change === "same-revision navigation") fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-  else fireEvent.change(screen.getByRole("textbox", { name: "Your explanation" }), { target: { value: "New explanation" } });
+  else fireEvent.input(screen.getByRole("textbox", { name: "Your explanation" }), { target: { value: "New explanation" } });
   await act(async () => resolveAuth(Response.json({ user: { id: "alice" }, session: { id: "synthetic-session" } })));
   expect(fetch.mock.calls.filter(([input]) => String(input).includes("/api/tutor"))).toHaveLength(0);
   expect(localStorage.getItem("understanding-lab:v1:owner:alice:current")).toBeNull();
@@ -310,7 +310,7 @@ test("blocked storage still allows an in-memory switch and retained text", async
   const { LocaleProvider } = await import("../../src/client/LocaleProvider");
   render(<LocaleProvider><App /></LocaleProvider>);
   fireEvent.click(screen.getByRole("button", { name: "Start learning" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Your explanation" }), { target: { value: "Still in memory" } });
+  fireEvent.input(screen.getByRole("textbox", { name: "Your explanation" }), { target: { value: "Still in memory" } });
   fireEvent.change(screen.getByRole("combobox", { name: "Language / 语言" }), { target: { value: "zh-CN" } });
   expect(document.documentElement.lang).toBe("zh-CN");
   expect(screen.getByRole("textbox", { name: "我的解释" })).toHaveProperty("value", "Still in memory");

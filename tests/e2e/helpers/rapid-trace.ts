@@ -60,6 +60,28 @@ export async function installRapidRevisionTrace(page: Page): Promise<void> {
         if (event.target instanceof HTMLTextAreaElement) record(kind, {
           field: ["answer-text", "notes"].includes(event.target.id) ? event.target.id : "<other>",
           value: syntheticText(event.target.value),
+          bubbles: event.bubbles, trusted: event.isTrusted, connected: event.target.isConnected,
+          inputType: event instanceof InputEvent ? event.inputType : null,
+          tracked: syntheticText((event.target as HTMLTextAreaElement & { _valueTracker?: { getValue(): string } })._valueTracker?.getValue()),
+        });
+      }, true);
+    }
+    document.addEventListener("input", event => {
+      if (event.target instanceof HTMLTextAreaElement) record("input-bubble", {
+        field: event.target.id === "answer-text" ? "answer-text" : "<other>",
+        value: syntheticText(event.target.value), stored: storedDraft(),
+      });
+    });
+    window.addEventListener("error", () => record("pageerror", { message: "Uncaught browser error (details omitted)" }));
+    for (const kind of ["pointerdown", "pointerup", "click"]) {
+      document.addEventListener(kind, event => {
+        const start = document.querySelector<HTMLButtonElement>(".intro button");
+        if (!start || !(event instanceof MouseEvent)) return;
+        const rect = start.getBoundingClientRect();
+        record(`intro-${kind}`, {
+          x: event.clientX, y: event.clientY,
+          target: event.target instanceof Element ? event.target.tagName : "unknown",
+          start: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
         });
       }, true);
     }
