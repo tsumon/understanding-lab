@@ -34,12 +34,15 @@ jobs:
       - name: Browser e2e
         id: e2e
         run: npm run test:e2e
-      - name: Upload rapid revision trace on e2e failure
+      - name: Upload scoped diagnostics on e2e failure
         if: ${{ failure() && steps.e2e.outcome == 'failure' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: rapid-revision-traces-${{ github.run_id }}-${{ github.run_attempt }}
-          path: test-results/**/rapid-revision-trace.json
+          name: e2e-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            test-results/**/rapid-revision-trace.json
+            test-results/**/offline-cache-diagnostic.json
+            test-results/**/error-context.md
           retention-days: 7
           if-no-files-found: warn
       # Build the stable package on PRs too; only the default-branch push can publish.
@@ -63,12 +66,16 @@ jobs:
           cp tmp/releases/understanding-lab-0.2.0-static.tar.gz.sha256 tmp/release-upload/
           cp docs/releases/v0.2.0.md tmp/release-upload/RELEASE_NOTES.md
           echo 'packaged=true' >> "$GITHUB_OUTPUT"
-          # Publish only the actual version transition, not subsequent documentation pushes.
+          # Publish the version transition or the single reviewed recovery below.
           if [[ "$EVENT_NAME" == push && "$EVENT_REF" == refs/heads/codex/understanding-lab-mvp ]]; then
             [[ "$BEFORE_SHA" =~ ^[0-9a-f]{40}$ && "$BEFORE_SHA" != 0000000000000000000000000000000000000000 ]]
             git cat-file -e "$BEFORE_SHA^{commit}"
             previous_version=$(git show "${BEFORE_SHA}:package.json" | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>console.log(JSON.parse(s).version))')
             if [[ "$previous_version" != '0.2.0' ]]; then
+              echo 'ready=true' >> "$GITHUB_OUTPUT"
+            elif [[ "$previous_version" == '0.2.0' && "$BEFORE_SHA" == 'a93edc4d34f1aadc50d40554fe50a099ba9c4116' ]]; then
+              # One immediate successor may recover failed initial release run 41550099037.
+              # Later same-version pushes do not inherit release intent.
               echo 'ready=true' >> "$GITHUB_OUTPUT"
             fi
           fi
