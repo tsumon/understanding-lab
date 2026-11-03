@@ -556,7 +556,13 @@ export function App() {
             <h2 id="answer-title">{session.step === "experiment" ? copy.experimentObservation : copy.myExplanation}</h2>
             {activeSlot ? <>
               <p className="question">{question}</p><label htmlFor="answer-text">{copy.explanationLabel}</label>
-              <textarea id="answer-text" aria-label={copy.explanationLabel} rows={8} value={text} onChange={(event) => changeText(event.target.value)} placeholder={copy.answerPlaceholder} />
+              <textarea id="answer-text" aria-label={copy.explanationLabel} rows={8} value={text} onInput={(event) => {
+                // Persist each native input, even when React's change tracker
+                // already matches the DOM (for example, assisted text insertion).
+                const value = event.currentTarget.value;
+                if ([...value].length > 4000) { event.currentTarget.value = text; return; }
+                changeText(value);
+              }} placeholder={copy.answerPlaceholder} />
               <p className="hint">{copy.answerCount([...text].length)}</p>
               <Recorder onTranscript={(value) => changeText(value)} />
               <button type="button" onClick={confirm}>{copy.confirm}</button>
