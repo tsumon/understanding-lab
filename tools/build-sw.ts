@@ -21,8 +21,9 @@ if (!files.some((file) => file === path.join(dist, "index.html")) || !files.some
 const hash = createHash("sha256");
 for (const file of files) { hash.update(path.relative(dist, file)); hash.update(await readFile(file)); }
 const cacheName = `understanding-lab-public-${hash.digest("hex").slice(0, 16)}`;
-const allowlist = files.map((file) => `/${path.relative(dist, file).split(path.sep).join("/")}`);
-allowlist.push("/");
+const base = (process.env.VITE_BASE_PATH || "/").replace(/\/?$/, "/");
+const allowlist = files.map((file) => `${base}${path.relative(dist, file).split(path.sep).join("/")}`);
+allowlist.push(base);
 const template = await readFile(path.join(root, "public/sw.js"), "utf8");
 const output = template.replace('"__CACHE_NAME__"', JSON.stringify(cacheName)).replace("__PRECACHE__", JSON.stringify(allowlist));
 await writeFile(path.join(dist, "sw.js"), output);

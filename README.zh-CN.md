@@ -4,13 +4,26 @@
 <p align="center"><a href="README.md">English</a> · 简体中文</p>
 
 <p align="center">
-  <a href="https://github.com/tsumon/understanding-lab/actions/workflows/ci.yml?query=branch%3Acodex%2Funderstanding-lab-mvp"><img alt="CI" src="https://github.com/tsumon/understanding-lab/actions/workflows/ci.yml/badge.svg?branch=codex/understanding-lab-mvp"></a>
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="https://tsumon.github.io/understanding-lab/"><img src="https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E7%AB%8B%E5%8D%B3%E4%BD%93%E9%AA%8C-12_%E7%AB%A0%E4%BA%A4%E4%BA%92%E5%BC%8F_AI_%E8%AF%BE%E7%A8%8B-1a5368?style=for-the-badge" alt="在线立即体验"></a>
 </p>
 
-理解实验室是一套本机优先的中英双语 AI 课程，共 12 个交互章节：数据划分、回归、过拟合、优化、分类、神经网络、嵌入、注意力、生成、检索、评测与负责任的部署。先预测、做可复现实验，再迁移与反思；课程记录仅保存在当前浏览器。原版过拟合学习流程仍独立保留。
+<p align="center">
+  <a href="https://github.com/tsumon/understanding-lab/actions/workflows/ci.yml?query=branch%3Acodex%2Funderstanding-lab-mvp"><img alt="CI" src="https://github.com/tsumon/understanding-lab/actions/workflows/ci.yml/badge.svg?branch=codex/understanding-lab-mvp"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <img alt="免登录零Key" src="https://img.shields.io/badge/%E5%85%8D%E7%99%BB%E5%BD%95-%E6%97%A0%E9%9C%80_API_Key-22c55e">
+</p>
 
-## 下载即用 · v0.2.0
+理解实验室是一套本机优先的中英双语 AI 课程，共 12 个交互章节：数据划分、回归、过拟合、优化、分类、神经网络、嵌入、注意力、生成、检索、评测与负责任的部署。先预测、做可复现实验，再迁移与反思；课程记录仅保存在当前浏览器，无需登录或配置 API Key。
+
+<p align="center">
+  <a href="https://tsumon.github.io/understanding-lab/"><img src="assets/readme/desktop-zh-CN.png" alt="理解实验室简体中文桌面界面" width="840"></a>
+</p>
+
+## 在线体验（零安装）
+
+👉 **[https://tsumon.github.io/understanding-lab/](https://tsumon.github.io/understanding-lab/)** — 浏览器直接打开即学，支持离线缓存。
+
+## 离线包本地运行 · v0.2.0
 
 [版本说明与下载](https://github.com/tsumon/understanding-lab/releases/tag/v0.2.0) · [静态课程压缩包](https://github.com/tsumon/understanding-lab/releases/download/v0.2.0/understanding-lab-0.2.0-static.tar.gz)
 

@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { bundleLicenses } from "./tools/bundle-licenses";
 
 export default defineConfig({
+  base: process.env.VITE_BASE_PATH || "/",
   plugins: [react(), bundleLicenses()],
   server: { proxy: { "/api": "http://127.0.0.1:3001" } },
   test: {

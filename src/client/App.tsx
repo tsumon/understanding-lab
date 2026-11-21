@@ -92,7 +92,7 @@ export function App() {
   };
 
   useEffect(() => {
-    fetch("/experiments/overfitting.v1.json").then((response) => {
+    fetch(`${import.meta.env.BASE_URL}experiments/overfitting.v1.json`).then((response) => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();
     }).then((data) => setPack(parsePack(data))).catch((error: unknown) => setPackError(error instanceof Error ? error.message : "unknown"));

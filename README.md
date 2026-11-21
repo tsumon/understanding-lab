@@ -4,13 +4,26 @@
 <p align="center">English · <a href="README.zh-CN.md">简体中文</a></p>
 
 <p align="center">
-  <a href="https://github.com/tsumon/understanding-lab/actions/workflows/ci.yml?query=branch%3Acodex%2Funderstanding-lab-mvp"><img alt="CI" src="https://github.com/tsumon/understanding-lab/actions/workflows/ci.yml/badge.svg?branch=codex/understanding-lab-mvp"></a>
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="https://tsumon.github.io/understanding-lab/"><img src="https://img.shields.io/badge/Try_Live_Course-Open_in_Browser-1a5368?style=for-the-badge" alt="Open Live Course in Browser"></a>
 </p>
 
-Understanding Lab is a local-first, bilingual AI course with 12 interactive chapters: data splits, regression, overfitting, optimization, classification, neural networks, embeddings, attention, generation, retrieval, evaluation, and responsible deployment. Predict, explore a deterministic experiment, explain a transfer case, and reflect. Course progress stays in this browser. The original overfitting learning loop remains available separately.
+<p align="center">
+  <a href="https://github.com/tsumon/understanding-lab/actions/workflows/ci.yml?query=branch%3Acodex%2Funderstanding-lab-mvp"><img alt="CI" src="https://github.com/tsumon/understanding-lab/actions/workflows/ci.yml/badge.svg?branch=codex/understanding-lab-mvp"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <img alt="No Account or API Key" src="https://img.shields.io/badge/zero_login-no_API_key-22c55e">
+</p>
 
-## Download and start — v0.2.0
+Understanding Lab is a local-first, bilingual AI course with 12 interactive chapters: data splits, regression, overfitting, optimization, classification, neural networks, embeddings, attention, generation, retrieval, evaluation, and responsible deployment. Predict, explore a deterministic experiment, explain a transfer case, and reflect. Course progress stays in your browser — no login or API key required.
+
+<p align="center">
+  <a href="https://tsumon.github.io/understanding-lab/"><img src="assets/readme/desktop-en.png" alt="Understanding Lab — interactive bilingual AI course" width="840"></a>
+</p>
+
+## Try online (zero install)
+
+👉 **[https://tsumon.github.io/understanding-lab/](https://tsumon.github.io/understanding-lab/)** — runs 100% locally in your browser with offline caching.
+
+## Download for offline self-hosting — v0.2.0
 
 [Release notes and downloads](https://github.com/tsumon/understanding-lab/releases/tag/v0.2.0) · [Static course archive](https://github.com/tsumon/understanding-lab/releases/download/v0.2.0/understanding-lab-0.2.0-static.tar.gz)
 

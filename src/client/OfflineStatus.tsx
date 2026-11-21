@@ -12,7 +12,7 @@ export function OfflineStatus({ enabled = import.meta.env.PROD, updateBlocked = 
       if (active && event.data?.type === "CACHE_READY") setReady(true);
     };
     navigator.serviceWorker.addEventListener("message", onMessage);
-    navigator.serviceWorker.register("/sw.js").then((registration) => {
+    navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).then((registration) => {
       if (!active) return;
       if (registration.waiting) setUpdate(registration.waiting);
       registration.addEventListener("updatefound", () => {
